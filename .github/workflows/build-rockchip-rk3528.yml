@@ -59,11 +59,11 @@ jobs:
 
       - name: Generate checksum
         run: |
-          cd output
-          for img in *.img *.tar; do
+          cd output/images
+          for img in *.img; do
             [[ -f "$img" ]] && sha256sum "$img" > "${img}.sha256"
           done
-          ls -la *.img* *.tar* 2>/dev/null || ls -la output/
+          ls -la *.img* 2>/dev/null
 
       - name: Upload to Release
         uses: softprops/action-gh-release@v2
@@ -73,9 +73,8 @@ jobs:
           name: Armbian rockchip-rk3528-fastyumjin (${{ inputs.kernel_branch }}, ${{ inputs.release }})
           draft: true
           files: |
-            output/*.img
-            output/*.img.sha256
-            output/*.tar
-            output/*.tar.sha256
+            output/images/*.img
+            output/images/*.img.sha256
+            output/images/*.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
