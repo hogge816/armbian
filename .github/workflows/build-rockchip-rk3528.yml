@@ -1,0 +1,62 @@
+name: "Build rockchip-rk3528-fastyumjin"
+
+on:
+  workflow_dispatch:
+    inputs:
+      kernel_branch:
+        description: 'Kernel branch'
+        type: choice
+        required: true
+        default: 'edge'
+        options:
+          - 'edge'
+          - 'current'
+          - 'legacy'
+      release:
+        description: 'Debian release'
+        type: choice
+        required: true
+        default: 'bookworm'
+        options:
+          - 'bookworm'
+          - 'jammy'
+          - 'mantic'
+          - 'trixie'
+          - 'sid'
+
+jobs:
+  build:
+    name: Build Armbian for rockchip-rk3528-fastyumjin
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/armbian/build:latest
+      options: --privileged
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        env:
+          BOARD: rockchip-rk3528-fastyumjin
+          BRANCH: ${{ inputs.kernel_branch }}
+          RELEASE: ${{ inputs.release }}
+          BUILD_MINIMAL: yes
+          BUILD_DESKTOP: no
+          KERNEL_CONFIGURE: no
+        run: |
+          ./compile.sh \
+            BOARD=${BOARD} \
+            BRANCH=${BRANCH} \
+            RELEASE=${RELEASE} \
+            BUILD_MINIMAL=${BUILD_MINIMAL} \
+            BUILD_DESKTOP=${BUILD_DESKTOP} \
+            KERNEL_CONFIGURE=${KERNEL_CONFIGURE} \
+            USERSETTINGS_LIST='' \
+            EXTENSION=''
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: armbian-${{ inputs.kernel_branch }}-${{ inputs.release }}-rockchip-rk3528-fastyumjin
+          path: output/
+          retention-days: 7
