@@ -46,6 +46,8 @@ jobs:
           BOARD: rockchip-rk3528-fastyumjin
           BRANCH: ${{ inputs.kernel_branch }}
           RELEASE: ${{ inputs.release }}
+          USE_DOCKER: no
+          PREFER_DOCKER: no
         run: |
           ./compile.sh \
             BOARD="${BOARD}" \
@@ -56,7 +58,9 @@ jobs:
             KERNEL_CONFIGURE=no \
             USERSETTINGS_LIST="" \
             EXTENSION="" \
-            ACCESS_TOKEN=skip
+            ACCESS_TOKEN=skip \
+            USE_DOCKER=no \
+            PREFER_DOCKER=no
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
