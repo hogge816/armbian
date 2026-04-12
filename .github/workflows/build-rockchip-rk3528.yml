@@ -69,7 +69,10 @@ jobs:
         run: |
           cd output/images
           for img in *.img; do
-            [[ -f "$img" ]] && xz -T0 -9 "$img"
+            if [[ -f "$img" ]]; then
+              xz -T0 -9 "$img" || xz -9 "$img"
+              chmod 644 "${img}.xz"
+            fi
           done
           ls -la *.img.xz* 2>/dev/null
 
