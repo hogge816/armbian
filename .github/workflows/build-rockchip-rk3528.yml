@@ -32,34 +32,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install build dependencies
+      - name: Install essential build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential bc bison bcg cryptsetup dirmngr fakelib \
-            libncurses-dev libssl-dev locales python3 swig uuid-dev zlib1g-dev \
-            libgmp-dev libmpfr-dev libmpc-dev libssl-dev \
-            gawk gcc-arm-linux-gnueabihf gcc-arm-linux-gnueabi \
-            gcc-aarch64-linux-gnu binutils-arm-linux-gnueabihf \
-            binutils-aarch64-linux-gnu device-tree-compiler \
-            kmod cpio flex u-boot-tools pv zip unzip xz-utils
+            build-essential bc bison flex libncurses-dev libssl-dev \
+            libelf-dev python3 u-boot-tools device-tree-compiler \
+            binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu \
+            pv zip unzip xz-utils fakelib
 
       - name: Build
         env:
           BOARD: rockchip-rk3528-fastyumjin
           BRANCH: ${{ inputs.kernel_branch }}
           RELEASE: ${{ inputs.release }}
-          BUILD_MINIMAL: yes
-          BUILD_DESKTOP: no
-          KERNEL_CONFIGURE: no
         run: |
           ./compile.sh \
             BOARD="${BOARD}" \
             BRANCH="${BRANCH}" \
             RELEASE="${RELEASE}" \
-            BUILD_MINIMAL="${BUILD_MINIMAL}" \
-            BUILD_DESKTOP="${BUILD_DESKTOP}" \
-            KERNEL_CONFIGURE="${KERNEL_CONFIGURE}" \
+            BUILD_MINIMAL=yes \
+            BUILD_DESKTOP=no \
+            KERNEL_CONFIGURE=no \
             USERSETTINGS_LIST="" \
             EXTENSION="" \
             ACCESS_TOKEN=skip
