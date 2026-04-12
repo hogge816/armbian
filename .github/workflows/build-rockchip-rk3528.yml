@@ -39,7 +39,7 @@ jobs:
             build-essential bc bison flex libncurses-dev libssl-dev \
             libelf-dev python3 u-boot-tools device-tree-compiler \
             binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu \
-            pv zip unzip xz-utils fakelib
+            pv zip unzip xz-utils
 
       - name: Build
         env:
