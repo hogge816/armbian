@@ -13,3 +13,7 @@ BOOT_FDT_FILE="rockchip/rk3528-fastyumjin.dtb"
 BOOT_SCENARIO="spl-blobs"
 IMAGE_PARTITION_TABLE="gpt"
 SERIALCON="ttyS2"
+# Use Radxa U-Boot which has hinlink board support
+BOOTSOURCE='https://github.com/radxa/u-boot.git'
+BOOTBRANCH='branch:next-dev-v2024.10'
+BOOTPATCHDIR='legacy/u-boot-radxa-rk35xx'
