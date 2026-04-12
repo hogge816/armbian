@@ -28,12 +28,21 @@ jobs:
   build:
     name: Build Armbian for rockchip-rk3528-fastyumjin
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/armbian/build:v26.2.0
-      options: --privileged
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential bc bison bcg cryptsetup dirmngr fakelib \
+            libncurses-dev libssl-dev locales python3 swig uuid-dev zlib1g-dev \
+            libgmp-dev libmpfr-dev libmpc-dev libssl-dev \
+            gawk gcc-arm-linux-gnueabihf gcc-arm-linux-gnueabi \
+            gcc-aarch64-linux-gnu binutils-arm-linux-gnueabihf \
+            binutils-aarch64-linux-gnu device-tree-compiler \
+            kmod cpio flex u-boot-tools pv zip unzip xz-utils
 
       - name: Build
         env:
@@ -45,17 +54,19 @@ jobs:
           KERNEL_CONFIGURE: no
         run: |
           ./compile.sh \
-            BOARD=${BOARD} \
-            BRANCH=${BRANCH} \
-            RELEASE=${RELEASE} \
-            BUILD_MINIMAL=${BUILD_MINIMAL} \
-            BUILD_DESKTOP=${BUILD_DESKTOP} \
-            KERNEL_CONFIGURE=${KERNEL_CONFIGURE} \
-            USERSETTINGS_LIST='' \
-            EXTENSION=''
+            BOARD="${BOARD}" \
+            BRANCH="${BRANCH}" \
+            RELEASE="${RELEASE}" \
+            BUILD_MINIMAL="${BUILD_MINIMAL}" \
+            BUILD_DESKTOP="${BUILD_DESKTOP}" \
+            KERNEL_CONFIGURE="${KERNEL_CONFIGURE}" \
+            USERSETTINGS_LIST="" \
+            EXTENSION="" \
+            ACCESS_TOKEN=skip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: armbian-${{ inputs.kernel_branch }}-${{ inputs.release }}-rockchip-rk3528-fastyumjin
           path: output/
