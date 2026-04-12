@@ -29,7 +29,7 @@ jobs:
     name: Build Armbian for rockchip-rk3528-fastyumjin
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/armbian/build:latest
+      image: ghcr.io/armbian/build:v26.2.0
       options: --privileged
     steps:
       - name: Checkout
