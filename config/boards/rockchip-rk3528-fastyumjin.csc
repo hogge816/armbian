@@ -20,3 +20,6 @@ BOOTPATCHDIR='legacy/u-boot-radxa-rk35xx'
 
 # Skip problematic wireless drivers
 KERNEL_DRIVERS_SKIP="rtw88 rtw88_8822be rtw88_8822ce rtw88_8822bu rtw88_8822cu"
+
+# Skip kernel driver patches to avoid RTW88 compatibility issues
+KERNELPATCHDIR=""
