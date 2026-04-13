@@ -1,0 +1,93 @@
+name: "Build rockchip-rk3528-fastyumjin"
+
+on:
+  workflow_dispatch:
+    inputs:
+      kernel_branch:
+        description: 'Kernel branch (vendor=6.1.x LTS, current=6.12.x, edge=7.x)'
+        type: choice
+        required: true
+        default: 'vendor'
+        options:
+          - 'vendor'
+          - 'current'
+          - 'legacy'
+          - 'edge'
+      release:
+        description: 'Debian release'
+        type: choice
+        required: true
+        default: 'bookworm'
+        options:
+          - 'bookworm'
+          - 'jammy'
+          - 'mantic'
+
+jobs:
+  build:
+    name: Build Armbian rockchip-rk3528-fastyumjin
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential bc bison flex libncurses-dev libssl-dev \
+            libelf-dev python3 u-boot-tools device-tree-compiler \
+            binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu \
+            pv zip unzip xz-utils
+
+      - name: Build
+        env:
+          BOARD: rockchip-rk3528-fastyumjin
+          BRANCH: ${{ inputs.kernel_branch }}
+          RELEASE: ${{ inputs.release }}
+        run: |
+          ./compile.sh \
+            BOARD="${BOARD}" \
+            BRANCH="${BRANCH}" \
+            RELEASE="${RELEASE}" \
+            BUILD_MINIMAL=no \
+            BUILD_DESKTOP=no \
+            KERNEL_CONFIGURE=no \
+            USERSETTINGS_LIST="" \
+            EXTENSION="" \
+            USE_DOCKER=no \
+            PREFER_DOCKER=no
+
+      - name: Generate checksum
+        run: |
+          cd output/images
+          for img in *.img; do
+            [[ -f "$img" ]] && sha256sum "$img" > "${img}.sha256"
+          done
+          ls -la *.img* 2>/dev/null
+
+      - name: Compress image
+        run: |
+          cd output/images
+          for img in *.img; do
+            if [[ -f "$img" ]]; then
+              cp "$img" /tmp/"$img"
+              xz -T0 -9 /tmp/"$img" && mv /tmp/"$img".xz "$img".xz
+            fi
+          done
+          ls -la *.img.xz* 2>/dev/null
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') != true
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Armbian rockchip-rk3528-fastyumjin (${{ inputs.kernel_branch }}, ${{ inputs.release }})
+          draft: true
+          files: |
+            output/images/*.img.xz
+            output/images/*.img.xz.sha256
+            output/images/*.img.sha256
+            output/images/*.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
