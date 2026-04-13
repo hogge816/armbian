@@ -4,11 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       kernel_branch:
-        description: 'Kernel branch (current=6.12.x LTS, edge=7.x mainline)'
+        description: 'Kernel branch'
         type: choice
         required: true
-        default: 'current'
+        default: 'vendor'
         options:
+          - 'vendor'
           - 'current'
           - 'legacy'
           - 'edge'
