@@ -17,3 +17,6 @@ SERIALCON="ttyS2"
 BOOTSOURCE='https://github.com/radxa/u-boot.git'
 BOOTBRANCH='branch:next-dev-v2024.10'
 BOOTPATCHDIR='legacy/u-boot-radxa-rk35xx'
+
+# Skip problematic wireless drivers
+KERNEL_DRIVERS_SKIP="rtw88 rtw88_8822be rtw88_8822ce rtw88_8822bu rtw88_8822cu"
