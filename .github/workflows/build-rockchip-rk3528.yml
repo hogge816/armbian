@@ -47,10 +47,11 @@ jobs:
           RELEASE: ${{ inputs.release }}
         run: |
           if [[ "$BRANCH" == "vendor" ]]; then
-            KERNEL_MAJOR_MINOR=6.1 ./compile.sh \
+            KERNEL_MAJOR_MINOR=6.1 KERNELPATCHDIR="" ./compile.sh \
               BOARD="${BOARD}" \
               BRANCH="${BRANCH}" \
               KERNEL_MAJOR_MINOR=6.1 \
+              KERNELPATCHDIR="" \
               RELEASE="${RELEASE}" \
               BUILD_MINIMAL=no \
               BUILD_DESKTOP=no \
