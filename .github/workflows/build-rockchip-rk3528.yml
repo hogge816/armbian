@@ -46,17 +46,32 @@ jobs:
           BRANCH: ${{ inputs.kernel_branch }}
           RELEASE: ${{ inputs.release }}
         run: |
-          ./compile.sh \
-            BOARD="${BOARD}" \
-            BRANCH="${BRANCH}" \
-            RELEASE="${RELEASE}" \
-            BUILD_MINIMAL=no \
-            BUILD_DESKTOP=no \
-            KERNEL_CONFIGURE=no \
-            USERSETTINGS_LIST="" \
-            EXTENSION="" \
-            USE_DOCKER=no \
-            PREFER_DOCKER=no
+          if [[ "$BRANCH" == "vendor" ]]; then
+            KERNEL_MAJOR_MINOR=6.1 ./compile.sh \
+              BOARD="${BOARD}" \
+              BRANCH="${BRANCH}" \
+              KERNEL_MAJOR_MINOR=6.1 \
+              RELEASE="${RELEASE}" \
+              BUILD_MINIMAL=no \
+              BUILD_DESKTOP=no \
+              KERNEL_CONFIGURE=no \
+              USERSETTINGS_LIST="" \
+              EXTENSION="" \
+              USE_DOCKER=no \
+              PREFER_DOCKER=no
+          else
+            ./compile.sh \
+              BOARD="${BOARD}" \
+              BRANCH="${BRANCH}" \
+              RELEASE="${RELEASE}" \
+              BUILD_MINIMAL=no \
+              BUILD_DESKTOP=no \
+              KERNEL_CONFIGURE=no \
+              USERSETTINGS_LIST="" \
+              EXTENSION="" \
+              USE_DOCKER=no \
+              PREFER_DOCKER=no
+          fi
 
       - name: Generate checksum
         run: |
