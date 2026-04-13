@@ -70,9 +70,8 @@ jobs:
           cd output/images
           for img in *.img; do
             if [[ -f "$img" ]]; then
-              mv "$img" /tmp/"$img".src
-              xz -T0 -9 /tmp/"$img".src -o "$img".xz
-              rm -f /tmp/"$img".src
+              cp "$img" /tmp/"$img"
+              xz -T0 -9 /tmp/"$img" && mv /tmp/"$img".xz "$img".xz
             fi
           done
           ls -la *.img.xz* 2>/dev/null
