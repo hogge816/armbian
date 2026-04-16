@@ -1,0 +1,7 @@
+--- a/arch/arm64/boot/dts/rockchip/Makefile
++++ b/arch/arm64/boot/dts/rockchip/Makefile
+@@ -x,x +x,x @@
+ 	rk3528-hinlink-ht2.dtb \
+ 	rk3528-hlink-h28k.dtb \
++	rk3528-fastyumjin.dtb \
+
