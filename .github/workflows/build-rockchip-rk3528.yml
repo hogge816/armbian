@@ -42,7 +42,7 @@ jobs:
 
       - name: Build
         env:
-          BOARD: rk3528-fastyumjin
+          BOARD: rockchip-rk3528-fastyumjin
           BRANCH: ${{ inputs.kernel_branch }}
           RELEASE: ${{ inputs.release }}
         run: |
