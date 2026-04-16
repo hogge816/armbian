@@ -1,0 +1,351 @@
+/dts-v1/;
+
+/ {
+	#address-cells = <0x02>;
+	model = "Hinlink HT2";
+	serial-number = "a2af6a7fd74161ce";
+	#size-cells = <0x02>;
+	interrupt-parent = <0x01>;
+	compatible = "hinlink,ht2\0rockchip,rk3528a";
+
+	qos@ff270100 {
+		compatible = "syscon";
+		reg = <0x00 0xff270100 0x00 0x20>;
+		phandle = <0xd5>;
+	};
+
+	qos@ff220000 {
+		compatible = "syscon";
+		reg = <0x00 0xff220000 0x00 0x20>;
+		phandle = <0x27>;
+	};
+
+	serial@ffa18000 {
+		reg-io-width = <0x04>;
+		clock-names = "baudclk\0apb_pclk";
+		interrupts = <0x00 0x2d 0x04>;
+		clocks = <0x02 0x24 0x02 0xc2>;
+		compatible = "rockchip,rk3528-uart\0snps,dw-apb-uart";
+		status = "disabled";
+		reg = <0x00 0xffa18000 0x00 0x100>;
+		phandle = <0xfc>;
+		dmas = <0x41 0x13 0x41 0x12>;
+		reg-shift = <0x02>;
+	};
+
+	i2c@ffa50000 {
+		pinctrl-names = "default";
+		#address-cells = <0x01>;
+		pinctrl-0 = <0x4b>;
+		clock-names = "i2c\0pclk";
+		interrupts = <0x00 0x3d 0x04>;
+		clocks = <0x02 0x127 0x02 0x126>;
+		#size-cells = <0x00>;
+		compatible = "rockchip,rk3528-i2c\0rockchip,rk3399-i2c";
+		status = "disabled";
+		reg = <0x00 0xffa50000 0x00 0x1000>;
+		phandle = <0xff>;
+	};
+
+	wireless-bluetooth {
+		pinctrl-names = "default\0rts_gpio";
+		pinctrl-0 = <0xa7 0xa8 0xa9 0xaa>;
+		BT,wake_gpio = <0xa5 0x10 0x00>;
+		BT,reset_gpio = <0xa5 0x11 0x00>;
+		uart_rts_gpios = <0xa5 0x0a 0x01>;
+		compatible = "bluetooth-platdata";
+		BT,wake_host_irq = <0xa5 0x12 0x00>;
+		pinctrl-1 = <0xab>;
+		status = "okay";
+		phandle = <0x1ca>;
+	};
+
+	qos@ff280180 {
+		compatible = "syscon";
+		reg = <0x00 0xff280180 0x00 0x20>;
+		phandle = <0xdf>;
+	};
+
+	scmi-shmem@10f000 {
+		compatible = "arm,scmi-shmem";
+		reg = <0x00 0x10f000 0x00 0x100>;
+		phandle = <0x1e>;
+	};
+
+	qos@ff260000 {
+		compatible = "syscon";
+		reg = <0x00 0xff260000 0x00 0x20>;
+		phandle = <0xd2>;
+	};
+
+	usb@ff100000 {
+		phy-names = "usb2-phy";
+		clock-names = "usbhost\0arbiter\0utmi";
+		interrupts = <0x00 0x8f 0x04>;
+		clocks = <0x02 0x1a0 0x02 0x1a1 0x25>;
+		compatible = "generic-ehci";
+		status = "okay";
+		phys = <0x26>;
+		reg = <0x00 0xff100000 0x00 0x40000>;
+		phandle = <0xc4>;
+	};
+
+	syscon@ff300000 {
+		compatible = "rockchip,rk3528-grf\0syscon\0simple-mfd";
+		reg = <0x00 0xff300000 0x00 0x90000>;
+		phandle = <0x0f>;
+
+		reboot-mode {
+			mode-normal = <0x5242c300>;
+			mode-loader = <0x5242c301>;
+			mode-bootloader = <0x5242c301>;
+			mode-recovery = <0x5242c303>;
+			mode-watchdog = <0x5242c308>;
+			mode-ums = <0x5242c30c>;
+			mode-fastboot = <0x5242c309>;
+			offset = <0x70200>;
+			compatible = "syscon-reboot-mode";
+			phandle = <0xe5>;
+			mode-charge = <0x5242c30b>;
+			mode-panic = <0x5242c307>;
+		};
+
+		grf-clock-controller {
+			#clock-cells = <0x01>;
+			compatible = "rockchip,rk3528-grf-cru";
+			phandle = <0x85>;
+		};
+	};
+
+	vdd-gpu {
+		regulator-max-microvolt = <0x118460>;
+		regulator-boot-on;
+		regulator-init-microvolt = <0xdbba0>;
+		regulator-always-on;
+		regulator-min-microvolt = <0xac1e8>;
+		regulator-name = "vdd_gpu";
+		compatible = "pwm-regulator";
+		regulator-settling-time-up-us = <0xfa>;
+		status = "okay";
+		phandle = <0x2b>;
+		pwms = <0xa0 0x00 0x1388 0x01>;
+		pwm-supply = <0x9d>;
+	};
+
+	hwspinlock@ffd70000 {
+		compatible = "rockchip,hwspinlock";
+		status = "disabled";
+		reg = <0x00 0xffd70000 0x00 0x100>;
+		phandle = <0x11f>;
+		#hwlock-cells = <0x01>;
+	};
+
+	interrupt-controller@fed01000 {
+		#address-cells = <0x00>;
+		interrupts = <0x01 0x09 0xf08>;
+		compatible = "arm,gic-400";
+		#interrupt-cells = <0x03>;
+		reg = <0x00 0xfed01000 0x00 0x1000 0x00 0xfed02000 0x00 0x2000 0x00 0xfed04000 0x00 0x2000 0x00 0xfed06000 0x00 0x2000>;
+		phandle = <0x01>;
+		interrupt-controller;
+	};
+
+	pinctrl {
+		#address-cells = <0x02>;
+		#size-cells = <0x02>;
+		compatible = "rockchip,rk3528-pinctrl";
+		ranges;
+		rockchip,grf = <0x91>;
+		phandle = <0x92>;
+
+		i2c3 {
+
+			i2c3m1-xfer {
+				rockchip,pins = <0x03 0x11 0x05 0x97 0x03 0x13 0x05 0x97>;
+				phandle = <0x176>;
+			};
+
+			i2c3m0-xfer {
+				rockchip,pins = <0x01 0x00 0x02 0x97 0x01 0x01 0x02 0x97>;
+				phandle = <0x4e>;
+			};
+		};
+
+		pcfg-pull-none-drv-level-7 {
+			drive-strength = <0x07>;
+			bias-disable;
+			phandle = <0x128>;
+		};
+
+		pcfg-pull-none-drv-level-4-smt {
+			drive-strength = <0x04>;
+			bias-disable;
+			input-schmitt-enable;
+			phandle = <0x156>;
+		};
+
+		wireless-bluetooth {
+
+			bt-reset-gpio {
+				rockchip,pins = <0x01 0x11 0x00 0x93>;
+				phandle = <0xa8>;
+			};
+
+			bt-wake-gpio {
+				rockchip,pins = <0x01 0x10 0x00 0x93>;
+				phandle = <0xa9>;
+			};
+
+			uart2m1-gpios {
+				rockchip,pins = <0x01 0x0a 0x00 0x93>;
+				phandle = <0xab>;
+			};
+
+			bt-host-wake-irq {
+				rockchip,pins = <0x01 0x12 0x00 0x9a>;
+				phandle = <0xaa>;
+			};
+		};
+
+		pcfg-pull-up-drv-level-15 {
+			drive-strength = <0x0f>;
+			phandle = <0x13f>;
+			bias-pull-up;
+		};
+
+		pcfg-pull-down-drv-level-13 {
+			drive-strength = <0x0d>;
+			bias-pull-down;
+			phandle = <0x14d>;
+		};
+
+		pcfg-pull-up-drv-level-2 {
+			drive-strength = <0x02>;
+			phandle = <0x94>;
+			bias-pull-up;
+		};
+
+		i2s1 {
+
+			i2s1-lrck {
+				rockchip,pins = <0x04 0x06 0x01 0x97>;
+				phandle = <0x63>;
+			};
+
+			i2s1-sdo1 {
+				rockchip,pins = <0x04 0x08 0x01 0x93>;
+				phandle = <0x69>;
+			};
+
+			i2s1-sdi3 {
+				rockchip,pins = <0x04 0x02 0x01 0x93>;
+				phandle = <0x67>;
+			};
+
+			i2s1-mclk {
+				rockchip,pins = <0x04 0x04 0x01 0x97>;
+				phandle = <0x17f>;
+			};
+
+			i2s1-sdi1 {
+				rockchip,pins = <0x04 0x0b 0x01 0x93>;
+				phandle = <0x65>;
+			};
+
+			i2s1-sdo2 {
+				rockchip,pins = <0x04 0x09 0x01 0x93>;
+				phandle = <0x6a>;
+			};
+
+			i2s1-sdo0 {
+				rockchip,pins = <0x04 0x07 0x01 0x93>;
+				phandle = <0x68>;
+			};
+
+			i2s1-sdi2 {
+				rockchip,pins = <0x04 0x03 0x01 0x93>;
+				phandle = <0x66>;
+			};
+
+			i2s1-sdi0 {
+				rockchip,pins = <0x04 0x0c 0x01 0x93>;
+				phandle = <0x64>;
+			};
+
+			i2s1-sclk {
+				rockchip,pins = <0x04 0x05 0x01 0x97>;
+				phandle = <0x62>;
+			};
+
+			i2s1-sdo3 {
+				rockchip,pins = <0x04 0x0a 0x01 0x93>;
+				phandle = <0x6b>;
+			};
+		};
+
+		pdm {
+
+			pdm-clk1 {
+				rockchip,pins = <0x04 0x04 0x03 0x93>;
+				phandle = <0x6d>;
+			};
+
+			pdm-sdi2 {
+				rockchip,pins = <0x04 0x0b 0x03 0x93>;
+				phandle = <0x70>;
+			};
+
+			pdm-sdi0 {
+				rockchip,pins = <0x04 0x0a 0x03 0x93>;
+				phandle = <0x6e>;
+			};
+
+			pdm-clk0 {
+				rockchip,pins = <0x04 0x0d 0x03 0x93>;
+				phandle = <0x6c>;
+			};
+
+			pdm-sdi3 {
+				rockchip,pins = <0x04 0x11 0x03 0x93>;
+				phandle = <0x71>;
+			};
+
+			pdm-sdi1 {
+				rockchip,pins = <0x04 0x09 0x03 0x93>;
+				phandle = <0x6f>;
+			};
+		};
+
+		pcfg-pull-none-drv-level-12 {
+			drive-strength = <0x0c>;
+			bias-disable;
+			phandle = <0x12d>;
+		};
+
+		i2c1 {
+
+			i2c1m1-xfer {
+				rockchip,pins = <0x04 0x15 0x04 0x97 0x04 0x16 0x04 0x97>;
+				phandle = <0x174>;
+			};
+
+			i2c1m0-xfer {
+				rockchip,pins = <0x04 0x03 0x02 0x97 0x04 0x02 0x02 0x97>;
+				phandle = <0x4c>;
+			};
+		};
+
+		pwm7 {
+
+			pwm7m1-pins {
+				rockchip,pins = <0x01 0x12 0x02 0x98>;
+				phandle = <0x18d>;
+			};
+
+			pwm7m0-pins {
+				rockchip,pins = <0x04 0x12 0x01 0x98>;
+				phandle = <0x5a>;
+			};
+		};
+
+		pcfg-pull-none-drv-le
