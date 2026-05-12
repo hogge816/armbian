@@ -1,0 +1,64 @@
+name: "Build oec-turbo 6.18.x"
+
+on:
+  workflow_dispatch:
+    inputs:
+      kernel_branch:
+        description: 'Kernel branch'
+        required: true
+        default: 'current'
+      release:
+        description: 'Debian release'
+        required: true
+        default: 'bookworm'
+
+jobs:
+  build:
+    name: Build Armbian oec-turbo 6.18.x
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential bc bison flex libncurses-dev libssl-dev \
+            libelf-dev python3 u-boot-tools device-tree-compiler \
+            binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu \
+            pv zip unzip xz-utils
+
+      - name: Build
+        env:
+          BOARD: rockchip-rk3528-fastyumjin
+          BRANCH: ${{ inputs.kernel_branch }}
+          RELEASE: ${{ inputs.release }}
+        run: |
+          ./compile.sh \
+            BOARD="${BOARD}" \
+            BRANCH="${BRANCH}" \
+            RELEASE="${RELEASE}" \
+            BUILD_MINIMAL=no \
+            BUILD_DESKTOP=no \
+            KERNEL_CONFIGURE=no \
+            USERSETTINGS_LIST="" \
+            EXTENSION="" \
+            USE_DOCKER=no \
+            PREFER_DOCKER=no
+
+      - name: Generate checksum
+        run: |
+          cd output/images
+          for img in *.img; do
+            [[ -f "$img" ]] && sha256sum "$img" > "${img}.sha256"
+          done
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: oec-turbo-6.18-build
+          path: |
+            output/images/*.img
+            output/images/*.img.sha256
+            output/images/*.txt
