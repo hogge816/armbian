@@ -1,0 +1,67 @@
+name: "Build rk3566-wxy-oec-turbo-4g"
+
+on:
+  workflow_dispatch:
+    inputs:
+      kernel_branch:
+        description: 'Kernel branch'
+        type: choice
+        required: true
+        default: 'current'
+        options:
+          - 'current'
+          - 'vendor'
+          - 'edge'
+      release:
+        description: 'Debian release'
+        type: choice
+        required: true
+        default: 'bookworm'
+        options:
+          - 'bookworm'
+          - 'jammy'
+          - 'noble'
+
+jobs:
+  build:
+    name: Build rockchip-rk3566-wxy-oec-turbo-4g
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential bc bison flex libncurses-dev libssl-dev \
+            libelf-dev python3 u-boot-tools device-tree-compiler \
+            binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu \
+            pv zip unzip xz-utils
+
+      - name: Build
+        env:
+          BOARD: rockchip-rk3566-wxy-oec-turbo-4g
+          BRANCH: ${{ inputs.kernel_branch }}
+          RELEASE: ${{ inputs.release }}
+        run: |
+          ./compile.sh \
+            BOARD="${BOARD}" \
+            BRANCH="${BRANCH}" \
+            RELEASE="${RELEASE}" \
+            BUILD_MINIMAL=no \
+            BUILD_DESKTOP=no \
+            KERNEL_CONFIGURE=no \
+            USERSETTINGS_LIST="" \
+            EXTENSION="" \
+            USE_DOCKER=no \
+            PREFER_DOCKER=no
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rockchip-rk3566-wxy-oec-turbo-4g-${{ inputs.kernel_branch }}-${{ inputs.release }}
+          path: |
+            output/images/*.img
+            output/images/*.img.sha256
+            output/images/*.txt
