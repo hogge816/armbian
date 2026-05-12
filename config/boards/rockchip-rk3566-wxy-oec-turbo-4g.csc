@@ -15,7 +15,7 @@ IMAGE_PARTITION_TABLE="gpt"
 SERIALCON="ttyS2"
 # Use U-Boot with RK3566 board support
 BOOTSOURCE='https://github.com/rockchip-linux/u-boot.git'
-BOOTBRANCH='branch:next-dev-v2024.10'
+BOOTBRANCH='branch:next-dev'
 BOOTPATCHDIR='legacy/u-boot-rockchip-rk3566'
 
 # Skip problematic wireless drivers
