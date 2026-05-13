@@ -9,9 +9,7 @@ on:
         required: true
         default: 'vendor'
         options:
-          - 'vendor'
           - 'current'
-          - 'legacy'
           - 'edge'
       release:
         description: 'Debian release'
