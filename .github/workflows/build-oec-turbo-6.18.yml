@@ -1,17 +1,8 @@
-name: "Build rk3566 boards"
+name: "Build rk3566-wxy-oec-turbo-4g 6.18"
 
 on:
   workflow_dispatch:
     inputs:
-      kernel_branch:
-        description: 'Kernel branch'
-        type: choice
-        required: true
-        default: 'current'
-        options:
-          - 'current'
-          - 'vendor'
-          - 'edge'
       release:
         description: 'Debian release'
         type: choice
@@ -21,24 +12,44 @@ on:
           - 'bookworm'
           - 'jammy'
           - 'noble'
-      boards:
-        description: 'Build board set'
+      image_variant:
+        description: 'Image variant'
         type: choice
         required: true
         default: 'both'
         options:
           - 'both'
-          - 'wxy-oec-turbo-4g'
-          - 'fastyumjin'
+          - 'server'
+          - 'desktop'
+      desktop_environment:
+        description: 'Desktop environment'
+        type: choice
+        required: true
+        default: 'xfce'
+        options:
+          - 'xfce'
+          - 'mate'
+          - 'cinnamon'
+          - 'gnome'
+          - 'kde-plasma'
 
 jobs:
-  build_wxy:
-    if: ${{ inputs.boards == 'both' || inputs.boards == 'wxy-oec-turbo-4g' }}
-    name: Build rockchip-rk3566-wxy-oec-turbo-4g
+  build_server:
+    if: ${{ inputs.image_variant == 'both' || inputs.image_variant == 'server' }}
+    name: Build server image - rockchip-rk3566-wxy-oec-turbo-4g 6.18
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout Armbian build
         uses: actions/checkout@v4
+        with:
+          repository: armbian/build
+          path: armbian-build
+          fetch-depth: 1
+
+      - name: Checkout userpatches
+        uses: actions/checkout@v4
+        with:
+          path: armbian-build/userpatches
 
       - name: Install build dependencies
         run: |
@@ -47,17 +58,18 @@ jobs:
             build-essential bc bison flex libncurses-dev libssl-dev \
             libelf-dev python3 u-boot-tools device-tree-compiler \
             binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu \
-            pv zip unzip xz-utils
+            pv zip unzip xz-utils qemu-user-static debootstrap
 
-      - name: Build
+      - name: Build server image
+        working-directory: armbian-build
         env:
           BOARD: rockchip-rk3566-wxy-oec-turbo-4g
-          BRANCH: ${{ inputs.kernel_branch }}
           RELEASE: ${{ inputs.release }}
         run: |
-          ./compile.sh \
+          ./compile.sh build \
             BOARD="${BOARD}" \
-            BRANCH="${BRANCH}" \
+            BRANCH=current \
+            KERNEL_MAJOR_MINOR=6.18 \
             RELEASE="${RELEASE}" \
             BUILD_MINIMAL=no \
             BUILD_DESKTOP=no \
@@ -67,22 +79,39 @@ jobs:
             USE_DOCKER=no \
             PREFER_DOCKER=no
 
-      - name: Upload artifacts
+      - name: Generate checksum
+        working-directory: armbian-build/output/images
+        run: |
+          for img in *.img; do
+            [[ -f "$img" ]] && sha256sum "$img" > "${img}.sha256"
+          done
+          ls -la *.img* 2>/dev/null
+
+      - name: Upload server artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: rockchip-rk3566-wxy-oec-turbo-4g-${{ inputs.kernel_branch }}-${{ inputs.release }}
+          name: rockchip-rk3566-wxy-oec-turbo-4g-6.18-server-${{ inputs.release }}
           path: |
-            output/images/*.img
-            output/images/*.img.sha256
-            output/images/*.txt
+            armbian-build/output/images/*.img
+            armbian-build/output/images/*.img.sha256
+            armbian-build/output/images/*.txt
 
-  build_fastyumjin:
-    if: ${{ inputs.boards == 'both' || inputs.boards == 'fastyumjin' }}
-    name: Build rockchip-rk3528-fastyumjin
+  build_desktop:
+    if: ${{ inputs.image_variant == 'both' || inputs.image_variant == 'desktop' }}
+    name: Build desktop image - rockchip-rk3566-wxy-oec-turbo-4g 6.18
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout Armbian build
         uses: actions/checkout@v4
+        with:
+          repository: armbian/build
+          path: armbian-build
+          fetch-depth: 1
+
+      - name: Checkout userpatches
+        uses: actions/checkout@v4
+        with:
+          path: armbian-build/userpatches
 
       - name: Install build dependencies
         run: |
@@ -91,31 +120,44 @@ jobs:
             build-essential bc bison flex libncurses-dev libssl-dev \
             libelf-dev python3 u-boot-tools device-tree-compiler \
             binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu \
-            pv zip unzip xz-utils
+            pv zip unzip xz-utils qemu-user-static debootstrap
 
-      - name: Build
+      - name: Build desktop image
+        working-directory: armbian-build
         env:
-          BOARD: rockchip-rk3528-fastyumjin
-          BRANCH: ${{ inputs.kernel_branch }}
+          BOARD: rockchip-rk3566-wxy-oec-turbo-4g
           RELEASE: ${{ inputs.release }}
+          DESKTOP_ENVIRONMENT: ${{ inputs.desktop_environment }}
         run: |
-          ./compile.sh \
+          ./compile.sh build \
             BOARD="${BOARD}" \
-            BRANCH="${BRANCH}" \
+            BRANCH=current \
+            KERNEL_MAJOR_MINOR=6.18 \
             RELEASE="${RELEASE}" \
             BUILD_MINIMAL=no \
-            BUILD_DESKTOP=no \
+            BUILD_DESKTOP=yes \
+            DESKTOP_ENVIRONMENT="${DESKTOP_ENVIRONMENT}" \
+            DESKTOP_ENVIRONMENT_CONFIG_NAME=config_base \
+            DESKTOP_APPGROUPS_SELECTED="browsers internet multimedia office desktop_tools" \
             KERNEL_CONFIGURE=no \
             USERSETTINGS_LIST="" \
             EXTENSION="" \
             USE_DOCKER=no \
             PREFER_DOCKER=no
 
-      - name: Upload artifacts
+      - name: Generate checksum
+        working-directory: armbian-build/output/images
+        run: |
+          for img in *.img; do
+            [[ -f "$img" ]] && sha256sum "$img" > "${img}.sha256"
+          done
+          ls -la *.img* 2>/dev/null
+
+      - name: Upload desktop artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: rockchip-rk3528-fastyumjin-${{ inputs.kernel_branch }}-${{ inputs.release }}
+          name: rockchip-rk3566-wxy-oec-turbo-4g-6.18-desktop-${{ inputs.release }}-${{ inputs.desktop_environment }}
           path: |
-            output/images/*.img
-            output/images/*.img.sha256
-            output/images/*.txt
+            armbian-build/output/images/*.img
+            armbian-build/output/images/*.img.sha256
+            armbian-build/output/images/*.txt
