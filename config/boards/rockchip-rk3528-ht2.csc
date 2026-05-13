@@ -1,5 +1,5 @@
 # Rockchip RK3528 based board - Hinlink HT2 + x88pro13 combo
-BOARD_NAME="RK3528 Fastyumjin"
+BOARD_NAME="RK3528 HT2 (fastyumjin)"
 BOARD_VENDOR="rockchip"
 BOOT_SOC="rk3528"
 BOARDFAMILY="rockchip64"
