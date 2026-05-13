@@ -28,8 +28,14 @@ jobs:
     name: Build Armbian rockchip-rk3528-oec-turbo
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout userpatches
         uses: actions/checkout@v4
+
+      - name: Checkout Armbian build
+        uses: actions/checkout@v4
+        with:
+          repository: armbian/build
+          path: .
 
       - name: Install build dependencies
         run: |
