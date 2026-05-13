@@ -27,6 +27,7 @@ jobs:
   build:
     name: Build Armbian rockchip-rk3528-oec-turbo
     runs-on: ubuntu-latest
+    timeout-minutes: 180
     steps:
       - name: Checkout Armbian build
         uses: actions/checkout@v4
@@ -54,8 +55,13 @@ jobs:
           BRANCH: ${{ inputs.kernel_branch }}
           RELEASE: ${{ inputs.release }}
         run: |
+          pwd
+          ls -la
           if [[ "$BRANCH" == "vendor" ]]; then
             cd build
+            pwd
+            ls -la | sed -n '1,40p'
+            test -x ./compile.sh
             USERPATCHES_PATH=../userpatches KERNEL_MAJOR_MINOR=6.1 KERNELPATCHDIR="" ./compile.sh \
               BOARD="${BOARD}" \
               BRANCH="${BRANCH}" \
@@ -71,6 +77,9 @@ jobs:
               PREFER_DOCKER=no
           else
             cd build
+            pwd
+            ls -la | sed -n '1,40p'
+            test -x ./compile.sh
             USERPATCHES_PATH=../userpatches ./compile.sh \
               BOARD="${BOARD}" \
               BRANCH="${BRANCH}" \
@@ -86,7 +95,7 @@ jobs:
 
       - name: Generate checksum
         run: |
-          cd output/images
+          cd build/output/images
           for img in *.img; do
             [[ -f "$img" ]] && sha256sum "$img" > "${img}.sha256"
           done
@@ -94,7 +103,7 @@ jobs:
 
       - name: Compress image
         run: |
-          cd output/images
+          cd build/output/images
           for img in *.img; do
             if [[ -f "$img" ]]; then
               cp "$img" /tmp/"$img"
@@ -111,9 +120,9 @@ jobs:
           name: Armbian rockchip-rk3528-oec-turbo (${{ inputs.kernel_branch }}, ${{ inputs.release }})
           draft: true
           files: |
-            output/images/*.img.xz
-            output/images/*.img.xz.sha256
-            output/images/*.img.sha256
-            output/images/*.txt
+            build/output/images/*.img.xz
+            build/output/images/*.img.xz.sha256
+            build/output/images/*.img.sha256
+            build/output/images/*.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
