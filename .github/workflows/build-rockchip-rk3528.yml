@@ -28,14 +28,16 @@ jobs:
     name: Build Armbian rockchip-rk3528-oec-turbo
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout userpatches
-        uses: actions/checkout@v4
-
       - name: Checkout Armbian build
         uses: actions/checkout@v4
         with:
           repository: armbian/build
-          path: .
+          path: build
+
+      - name: Checkout userpatches
+        uses: actions/checkout@v4
+        with:
+          path: userpatches
 
       - name: Install build dependencies
         run: |
@@ -53,7 +55,8 @@ jobs:
           RELEASE: ${{ inputs.release }}
         run: |
           if [[ "$BRANCH" == "vendor" ]]; then
-            KERNEL_MAJOR_MINOR=6.1 KERNELPATCHDIR="" ./compile.sh \
+            cd build
+            USERPATCHES_PATH=../userpatches KERNEL_MAJOR_MINOR=6.1 KERNELPATCHDIR="" ./compile.sh \
               BOARD="${BOARD}" \
               BRANCH="${BRANCH}" \
               KERNEL_MAJOR_MINOR=6.1 \
@@ -67,7 +70,8 @@ jobs:
               USE_DOCKER=no \
               PREFER_DOCKER=no
           else
-            ./compile.sh \
+            cd build
+            USERPATCHES_PATH=../userpatches ./compile.sh \
               BOARD="${BOARD}" \
               BRANCH="${BRANCH}" \
               RELEASE="${RELEASE}" \
