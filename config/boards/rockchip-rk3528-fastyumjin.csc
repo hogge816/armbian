@@ -1,4 +1,4 @@
-# Rockchip RK3568 based board - OEC Turbo 4G
+# Rockchip RK3528A based board - hk28A
 BOARD_NAME="OEC Turbo 4G"
 BOARD_VENDOR="rockchip"
 BOOT_SOC="rk3568"
