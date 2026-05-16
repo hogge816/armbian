@@ -1,15 +1,15 @@
 # Rockchip RK3528A based board - hk28A
 BOARD_NAME="OEC Turbo 4G"
 BOARD_VENDOR="rockchip"
-BOOT_SOC="rk3528A"
+BOOT_SOC="rk3528"
 BOARDFAMILY="rockchip64"
 BOARD_MAINTAINER="hogge816"
 INTRODUCED="2026"
 BOOTCONFIG="rk3528_defconfig"
-KERNEL_TARGET="vendor,edge"
+KERNEL_TARGET="vendor,current,edge"
 FULL_DESKTOP="no"
 BOOT_LOGO="no"
-BOOT_FDT_FILE="rockchip/rockchip-rk3528-fastyumjin.dtb"
+BOOT_FDT_FILE="rockchip/rk3528-fastyumjin.dtb"
 BOOT_SCENARIO="spl-blobs"
 IMAGE_PARTITION_TABLE="gpt"
 SERIALCON="ttyS2"
@@ -21,5 +21,5 @@ BOOTPATCHDIR='legacy/u-boot-rockchip-rk3528'
 # Skip problematic wireless drivers
 KERNEL_DRIVERS_SKIP="rtw88 rtw88_8822be rtw88_8822ce rtw88_8822bu rtw88_8822cu"
 
-# Skip kernel driver patches to avoid RTW88 compatibility issues
-KERNELPATCHDIR=""
+# Use kernel patch series for rockchip64-6.18; includes DTS, rk3528 support patches
+# KERNELPATCHDIR default: archive/rockchip64-${KERNEL_MAJOR_MINOR}
