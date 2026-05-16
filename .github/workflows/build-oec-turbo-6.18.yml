@@ -57,11 +57,36 @@ jobs:
             USE_DOCKER=no \
             PREFER_DOCKER=no
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+      - name: Generate checksum
+        run: |
+          cd output/images
+          for img in *.img; do
+            [[ -f "$img" ]] && sha256sum "$img" > "${img}.sha256"
+          done
+          ls -la *.img* 2>/dev/null
+
+      - name: Compress image
+        run: |
+          cd output/images
+          for img in *.img; do
+            if [[ -f "$img" ]]; then
+              cp "$img" /tmp/"$img"
+              xz -T0 -9 /tmp/"$img" && mv /tmp/"$img".xz "$img".xz
+            fi
+          done
+          ls -la *.img.xz* 2>/dev/null
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') != true
         with:
-          name: rockchip-rk3566-wxy-oec-turbo-4g-${{ inputs.kernel_branch }}-${{ inputs.release }}
-          path: |
-            output/images/*.img
+          tag_name: oec-turbo-build-${{ github.run_number }}
+          name: Armbian rockchip-rk3566-wxy-oec-turbo-4g (${{ inputs.kernel_branch }}, ${{ inputs.release }})
+          draft: true
+          files: |
+            output/images/*.img.xz
+            output/images/*.img.xz.sha256
             output/images/*.img.sha256
             output/images/*.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

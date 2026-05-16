@@ -6,7 +6,7 @@ BOARDFAMILY="rockchip64"
 BOARD_MAINTAINER="hogge816"
 INTRODUCED="2026"
 BOOTCONFIG="rk3566_defconfig"
-KERNEL_TARGET="current"
+KERNEL_TARGET="current,edge"
 FULL_DESKTOP="no"
 BOOT_LOGO="no"
 BOOT_FDT_FILE="rockchip/rk3566-wxy-oec-turbo-4g.dtb"
@@ -20,6 +20,3 @@ BOOTPATCHDIR='legacy/u-boot-rockchip-rk3566'
 
 # Skip problematic wireless drivers
 KERNEL_DRIVERS_SKIP="rtw88 rtw88_8822be rtw88_8822ce rtw88_8822bu rtw88_8822cu"
-
-# Skip kernel driver patches to avoid RTW88 compatibility issues
-KERNELPATCHDIR=""

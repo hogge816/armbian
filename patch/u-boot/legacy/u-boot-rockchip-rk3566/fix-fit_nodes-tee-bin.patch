@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: OpenCode <opencode@example.com>
+Date: Fri, 15 May 2026 00:00:00 +0000
+Subject: [PATCH] fix fit_nodes.sh: check CONFIG_SPL_OPTEE for arm64 before
+ packing tee.bin
+
+The gen_bl32_node function only checked CONFIG_SPL_OPTEE for arm (32-bit),
+but for arm64 it unconditionally included tee.bin in the FIT image.
+If no OP-TEE binary is present, the build fails with "FATAL ERROR:
+Couldn't open tee.bin".
+
+---
+ arch/arm/mach-rockchip/fit_nodes.sh | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/arch/arm/mach-rockchip/fit_nodes.sh b/arch/arm/mach-rockchip/fit_nodes.sh
+index 1111111111..2222222222 100755
+--- a/arch/arm/mach-rockchip/fit_nodes.sh
++++ b/arch/arm/mach-rockchip/fit_nodes.sh
+@@ -191,6 +191,13 @@ function gen_bl32_node()
+ 		fi
+ 	fi
+ 
++	# For non-arm arch (e.g. arm64) also check CONFIG_SPL_OPTEE before packing tee.bin
++	if [ "${ARCH}" != "arm" ]; then
++		if ! grep -q '^CONFIG_SPL_OPTEE=y' .config ; then
++			return
++		fi
++	fi
++
+ 	TEE="tee.bin"
+ 	echo "		optee {
+ 			description = \"OP-TEE\";
+-- 
+2.34.1
