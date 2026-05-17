@@ -12,6 +12,7 @@ BOOT_LOGO="no"
 BOOT_FDT_FILE="rockchip/rk3528-fastyumjin.dtb"
 BOOT_SCENARIO="spl-blobs"
 IMAGE_PARTITION_TABLE="gpt"
+BOOTFS_TYPE="ext4"
 SERIALCON="ttyS2"
 # Use U-Boot with RK3528 board support
 BOOTSOURCE='https://github.com/rockchip-linux/u-boot.git'

@@ -13,6 +13,22 @@ BOOT_FDT_FILE="rockchip/rk3566-wxy-oec-turbo-4g.dtb"
 BOOT_SCENARIO="spl-blobs"
 IMAGE_PARTITION_TABLE="gpt"
 SERIALCON="ttyS2"
+
+function post_family_config__oec_turbo_image_layout() {
+	declare -g OFFSET=180
+	declare -g BOOTSIZE=511
+	declare -g BOOTFS_TYPE="ext4"
+	declare -g USE_HOOK_FOR_PARTITION="yes"
+}
+
+function create_partition_table() {
+	cat <<- EOF | run_host_command_logged sfdisk "${SDCARD}.raw"
+		label: gpt
+		1 : name="primary", start=368640, size=1046528, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4
+		2 : name="primary", start=1417216, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4
+	EOF
+}
+
 # Use U-Boot with RK3566 board support
 BOOTSOURCE='https://github.com/rockchip-linux/u-boot.git'
 BOOTBRANCH='branch:next-dev'
