@@ -1,5 +1,5 @@
 # Rockchip RK3528A based board - hk28A
-BOARD_NAME="OEC Turbo 4G"
+BOARD_NAME="Fastyumjin-3528A"
 BOARD_VENDOR="rockchip"
 BOOT_SOC="rk3528"
 BOARDFAMILY="rockchip64"
