@@ -22,9 +22,9 @@ BOOTPATCHDIR='legacy/u-boot-rockchip-rk3528'
 # Skip problematic wireless drivers
 KERNEL_DRIVERS_SKIP="rtw88 rtw88_8822be rtw88_8822ce rtw88_8822bu rtw88_8822cu"
 
-# The RK3399 Type-C compatibility patch is already partly upstream in 6.18.31
-# and does not apply to this RK3528 board.
-KERNEL_PATCHES_TO_SKIP="rk3399-usbc-phy-rockchip-naneng-Add-fallback-for-old-DTs.patch"
+# The RK3399 Type-C/DWC3 compatibility series is not applicable to this
+# RK3528 board. Skip the complete dependent series, not just its base patch.
+KERNEL_PATCHES_TO_SKIP="rk3399-usbc-phy-rockchip-naneng-Add-fallback-for-old-DTs.patch rk3399-usbc-usb-dwc3-Track-the-power-state-of-usb3_generic_phy.patch rk3399-usbc-usb-dwc3-Extend-reset-quirk-support-to-include-role-.patch"
 
 # The old Rockchip FIT generator reads bl31.elf from the U-Boot worktree.
 # Armbian passes BL31 as a make variable, so stage it explicitly before make.
