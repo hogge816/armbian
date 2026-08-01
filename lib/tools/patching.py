@@ -41,6 +41,7 @@ CONST_CONFIG_YAML_FILE: str = '0000.patching_config.yaml'
 SRC = armbian_utils.get_from_env_or_bomb("SRC")
 PATCH_TYPE = armbian_utils.get_from_env_or_bomb("PATCH_TYPE")
 PATCH_DIRS_TO_APPLY = armbian_utils.parse_env_for_tokens("PATCH_DIRS_TO_APPLY")
+PATCHES_TO_SKIP = set(armbian_utils.parse_env_for_tokens("PATCHES_TO_SKIP"))
 APPLY_PATCHES = armbian_utils.get_from_env("APPLY_PATCHES")
 PATCHES_TO_GIT = armbian_utils.get_from_env("PATCHES_TO_GIT")
 REWRITE_PATCHES = armbian_utils.get_from_env("REWRITE_PATCHES")
@@ -171,6 +172,18 @@ for one_patch_file in ALL_DIR_PATCH_FILES:
 # The other patches are separately sorted.
 NORMAL_PATCH_FILES = list(dict(sorted(ALL_DIR_PATCH_FILES_BY_NAME.items())).values())
 ALL_PATCH_FILES_SORTED = PATCH_FILES_FIRST + SERIES_PATCH_FILES + NORMAL_PATCH_FILES
+
+if PATCHES_TO_SKIP:
+	all_patch_files_before_skip = len(ALL_PATCH_FILES_SORTED)
+	ALL_PATCH_FILES_SORTED = [
+		one_patch_file
+		for one_patch_file in ALL_PATCH_FILES_SORTED
+		if one_patch_file.file_name not in PATCHES_TO_SKIP
+		and one_patch_file.file_name_no_ext_no_dirs not in PATCHES_TO_SKIP
+	]
+	log.info(
+		f"Skipped {all_patch_files_before_skip - len(ALL_PATCH_FILES_SORTED)} kernel patches "
+		f"from PATCHES_TO_SKIP: {sorted(PATCHES_TO_SKIP)}")
 
 patch_counter_desc_arr = []
 if len(PATCH_FILES_FIRST) > 0:

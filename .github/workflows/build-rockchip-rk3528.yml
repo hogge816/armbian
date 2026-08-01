@@ -46,6 +46,7 @@ jobs:
           BRANCH: ${{ inputs.kernel_branch }}
           RELEASE: ${{ inputs.release }}
         run: |
+          set -euo pipefail
           if [[ "$BRANCH" == "vendor" ]]; then
             KERNEL_MAJOR_MINOR=6.1 KERNELPATCHDIR="" ./compile.sh \
               BOARD="${BOARD}" \
@@ -55,6 +56,7 @@ jobs:
               RELEASE="${RELEASE}" \
               BUILD_MINIMAL=no \
               BUILD_DESKTOP=no \
+              KERNEL_BTF=no \
               KERNEL_CONFIGURE=no \
               USERSETTINGS_LIST="" \
               EXTENSION="" \
@@ -67,12 +69,66 @@ jobs:
               RELEASE="${RELEASE}" \
               BUILD_MINIMAL=no \
               BUILD_DESKTOP=no \
+              KERNEL_BTF=no \
               KERNEL_CONFIGURE=no \
               USERSETTINGS_LIST="" \
               EXTENSION="" \
               USE_DOCKER=no \
               PREFER_DOCKER=no
           fi
+
+      - name: Verify known-good RK3528 first-stage loader
+        env:
+          BRANCH: ${{ inputs.kernel_branch }}
+        run: |
+          set -euo pipefail
+          loader="config/boards/rockchip-rk3528-fastyumjin/idbloader.img"
+          expected="ee4ea8d45f9ae9c70dc9ea0c8d3f3acc93063f9d078902940c811ce670672af3"
+          expected_uboot_fdt="db83a0738a78c82a0c5e5913509555359900fe2075497362dabc7ad2e4a3decc"
+          test -s "$loader"
+          test "$(stat -c '%s' "$loader")" -eq 315392
+          test "$(sha256sum "$loader" | cut -d' ' -f1)" = "$expected"
+
+          test -s config/boards/rockchip-rk3528-fastyumjin/u-boot-h28k.dtb
+          test "$(sha256sum config/boards/rockchip-rk3528-fastyumjin/u-boot-h28k.dtb | cut -d' ' -f1)" = "$expected_uboot_fdt"
+
+          uboot_pkg="$(find output/debs -maxdepth 1 -type f -name "linux-u-boot-rockchip-rk3528-fastyumjin-${BRANCH}_*.deb" -print -quit)"
+          test -n "$uboot_pkg"
+          uboot_root="$(mktemp -d)"
+          trap 'rm -rf "$uboot_root"' EXIT
+          dpkg-deb -x "$uboot_pkg" "$uboot_root"
+          uboot_dir="$uboot_root/usr/lib/linux-u-boot-${BRANCH}-rockchip-rk3528-fastyumjin"
+          test -s "$uboot_dir/idbloader.img"
+          test "$(sha256sum "$uboot_dir/idbloader.img" | cut -d' ' -f1)" = "$expected"
+
+          fit="$uboot_dir/u-boot.itb"
+          test -s "$fit"
+          fit_list="$uboot_root/fit-list.txt"
+          dumpimage -l "$fit" | tee "$fit_list"
+          grep -q 'Image 1 (atf-1)' "$fit_list"
+          grep -q 'Image 2 (atf-2)' "$fit_list"
+          grep -q 'Image 3 (atf-3)' "$fit_list"
+          grep -q 'Image 4 (fdt)' "$fit_list"
+          grep -q 'Description:  rk3528-hinlink-h28k' "$fit_list"
+          fit_fdt="$uboot_root/u-boot-fdt.dtb"
+          dumpimage -T flat_dt -p 4 -o "$fit_fdt" "$fit"
+          test "$(sha256sum "$fit_fdt" | cut -d' ' -f1)" = "$expected_uboot_fdt"
+
+          found=0
+          for image in output/images/*Rockchip-rk3528-fastyumjin*.img; do
+            [[ -f "$image" ]] || continue
+            actual="$(dd if="$image" bs=512 skip=64 count=616 iflag=fullblock status=none | sha256sum | cut -d' ' -f1)"
+            test "$actual" = "$expected"
+
+            fit_size="$(stat -c '%s' "$fit")"
+            fit_sectors=$(( (fit_size + 511) / 512 ))
+            fit_from_image="$uboot_root/fit-from-image.img"
+            dd if="$image" of="$fit_from_image" bs=512 skip=16384 count="$fit_sectors" iflag=fullblock status=none
+            truncate -s "$fit_size" "$fit_from_image"
+            cmp "$fit" "$fit_from_image"
+            found=1
+          done
+          test "$found" -eq 1
 
       - name: Generate checksum
         run: |

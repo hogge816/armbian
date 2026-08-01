@@ -27,6 +27,7 @@ function kernel_main_patching_python() {
 		"ASSET_LOG_BASE=$(print_current_asset_log_base_file)" # base file name for the asset log; to write .md summaries.
 		"PATCH_TYPE=kernel"                                   # or, u-boot, or, atf
 		"PATCH_DIRS_TO_APPLY=${KERNELPATCHDIR}"               # A space-separated list of directories to apply...
+		"PATCHES_TO_SKIP=${KERNEL_PATCHES_TO_SKIP:-}"          # Space-separated patch filenames to skip for this target
 		"USERPATCHES_PATH=${USERPATCHES_PATH}"                # Needed to find the userpatches.
 		#"BOARD="                                             # BOARD is needed for the patchset selection logic; mostly for u-boot. empty for kernel.
 		#"TARGET="                                            # TARGET is need for u-boot's SPI/SATA etc selection logic. empty for kernel

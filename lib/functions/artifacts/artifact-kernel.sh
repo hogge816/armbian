@@ -17,6 +17,7 @@ function artifact_kernel_config_dump() {
 	artifact_input_variables[KERNELSOURCE]="${KERNELSOURCE}"
 	artifact_input_variables[KERNELBRANCH]="${KERNELBRANCH}"
 	artifact_input_variables[KERNELPATCHDIR]="${KERNELPATCHDIR}"
+	artifact_input_variables[KERNEL_PATCHES_TO_SKIP]="${KERNEL_PATCHES_TO_SKIP:-}"
 	artifact_input_variables[ARCH]="${ARCH}"
 	artifact_input_variables[EXTRAWIFI]="${EXTRAWIFI:-"yes"}"
 }
