@@ -114,9 +114,17 @@ jobs:
           dumpimage -T flat_dt -p 4 -o "$fit_fdt" "$fit"
           test "$(sha256sum "$fit_fdt" | cut -d' ' -f1)" = "$expected_uboot_fdt"
 
+          workspace="${GITHUB_WORKSPACE:-$PWD}"
+          image_root="$workspace/output/images"
+          printf 'verification_pwd=%s\n' "$PWD"
+          printf 'verification_image_root=%s\n' "$image_root"
+          find "$workspace" -type f -name '*.img' -printf 'verification_image=%p %s bytes\n' | sort
           found=0
-          for image in output/images/*Rockchip-rk3528-fastyumjin*.img; do
-            [[ -f "$image" ]] || continue
+          mapfile -t images < <(find "$workspace" -type f -name '*.img' -print | sort)
+          printf 'Generated image files:\n'
+          printf '  %s\n' "${images[@]}"
+          for image in "${images[@]}"; do
+            [[ -n "$image" ]] || continue
             actual="$(dd if="$image" bs=512 skip=64 count=616 iflag=fullblock status=none | sha256sum | cut -d' ' -f1)"
             test "$actual" = "$expected"
 
