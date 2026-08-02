@@ -1,0 +1,247 @@
+name: "Build HinLink HT2 RK3528A USB 6.18"
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "Debian release"
+        type: choice
+        required: true
+        default: "bookworm"
+        options:
+          - "bookworm"
+          - "jammy"
+  pull_request:
+    paths:
+      - ".github/workflows/build-hinlink-ht2-rk3528.yml"
+      - "config/boards/hinlink-ht2.csc"
+      - "config/boards/hinlink-ht2/**"
+      - "config/boards/rockchip-rk3528-fastyumjin.csc"
+      - "config/booting/rockchip/rk3528-fastyumjin.dtb"
+      - "patch/kernel/archive/rockchip64-6.18/**"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build HinLink HT2 RK3528A (Linux 6.18, USB recovery)
+    runs-on: ubuntu-latest
+    env:
+      BOARD: hinlink-ht2
+      BRANCH: current
+      RELEASE: ${{ inputs.release || 'bookworm' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential bc bison flex libncurses-dev libssl-dev \
+            libelf-dev python3 python3-dev u-boot-tools device-tree-compiler \
+            binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu \
+            pv zip unzip xz-utils curl util-linux
+
+      - name: Build HT2 Linux 6.18 image
+        run: |
+          set -euo pipefail
+          ./compile.sh \
+            BOARD="${BOARD}" \
+            BRANCH="${BRANCH}" \
+            RELEASE="${RELEASE}" \
+            BUILD_MINIMAL=no \
+            BUILD_DESKTOP=no \
+            KERNEL_BTF=no \
+            KERNEL_CONFIGURE=no \
+            USERSETTINGS_LIST="" \
+            EXTENSION="" \
+            USE_DOCKER=no \
+            PREFER_DOCKER=no
+
+      - name: Generate image checksums
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          images=(output/images/*.img)
+          test "${#images[@]}" -ge 1
+          for image in "${images[@]}"; do
+            sha256sum "${image}" > "${image}.sha256"
+          done
+
+      - name: Verify audited pre-Linux chain and generated package
+        run: |
+          set -euo pipefail
+          board_dir="config/boards/${BOARD}"
+          expected_idbloader="ee4ea8d45f9ae9c70dc9ea0c8d3f3acc93063f9d078902940c811ce670672af3"
+          expected_fit="135b99eb7f1072984c9f028d13db536e1e4e41104bf81f6f50080313c087769c"
+          expected_fit_size="1322808"
+          expected_uboot_fdt="db83a0738a78c82a0c5e5913509555359900fe2075497362dabc7ad2e4a3decc"
+
+          test -s "${board_dir}/idbloader.img"
+          test "$(stat -c '%s' "${board_dir}/idbloader.img")" -eq 315392
+          test "$(sha256sum "${board_dir}/idbloader.img" | cut -d' ' -f1)" = "${expected_idbloader}"
+
+          fit="${board_dir}/u-boot-h28k.itb"
+          test -s "${fit}"
+          test "$(stat -c '%s' "${fit}")" = "${expected_fit_size}"
+          test "$(sha256sum "${fit}" | cut -d' ' -f1)" = "${expected_fit}"
+          dumpimage -l "${fit}" | tee fit-list.txt
+          grep -q 'Image 1 (atf-1)' fit-list.txt
+          grep -q 'Image 2 (atf-2)' fit-list.txt
+          grep -q 'Image 3 (atf-3)' fit-list.txt
+          grep -q 'Image 4 (fdt)' fit-list.txt
+          grep -q 'Description:  rk3528-hinlink-h28k' fit-list.txt
+
+          fit_fdt="$(mktemp)"
+          fit_totalsize_hex="$(od -An -tx1 -N4 -j4 "${fit}" | tr -d '[:space:]')"
+          fit_data_offset_hex="$(fdtget -t x "${fit}" /images/fdt data-offset)"
+          fit_data_size_hex="$(fdtget -t x "${fit}" /images/fdt data-size)"
+          fit_header_size=$((16#${fit_totalsize_hex}))
+          fit_data_offset=$((16#${fit_data_offset_hex}))
+          fit_data_size=$((16#${fit_data_size_hex}))
+          fit_data_base=$(( ((fit_header_size + 2047) / 2048) * 2048 ))
+          dd if="${fit}" of="${fit_fdt}" bs=1 skip=$((fit_data_base + fit_data_offset)) count="${fit_data_size}" iflag=fullblock status=none
+          test "$(sha256sum "${fit_fdt}" | cut -d' ' -f1)" = "${expected_uboot_fdt}"
+          rm -f "${fit_fdt}"
+
+          mapfile -t uboot_pkgs < <(find output/debs -maxdepth 1 -type f -name "linux-u-boot-${BOARD}-${BRANCH}_*.deb" -print | sort)
+          test "${#uboot_pkgs[@]}" -eq 1
+          uboot_root="$(mktemp -d)"
+          trap 'rm -rf "${uboot_root}"' EXIT
+          dpkg-deb -x "${uboot_pkgs[0]}" "${uboot_root}"
+          uboot_dir="${uboot_root}/usr/lib/linux-u-boot-${BRANCH}-${BOARD}"
+          test -s "${uboot_dir}/idbloader.img"
+          test -s "${uboot_dir}/u-boot.itb"
+          cmp "${board_dir}/idbloader.img" "${uboot_dir}/idbloader.img"
+          cmp "${fit}" "${uboot_dir}/u-boot.itb"
+
+          package_fdt="$(mktemp)"
+          package_totalsize_hex="$(od -An -tx1 -N4 -j4 "${uboot_dir}/u-boot.itb" | tr -d '[:space:]')"
+          package_data_offset_hex="$(fdtget -t x "${uboot_dir}/u-boot.itb" /images/fdt data-offset)"
+          package_data_size_hex="$(fdtget -t x "${uboot_dir}/u-boot.itb" /images/fdt data-size)"
+          package_header_size=$((16#${package_totalsize_hex}))
+          package_data_offset=$((16#${package_data_offset_hex}))
+          package_data_size=$((16#${package_data_size_hex}))
+          package_data_base=$(( ((package_header_size + 2047) / 2048) * 2048 ))
+          dd if="${uboot_dir}/u-boot.itb" of="${package_fdt}" bs=1 skip=$((package_data_base + package_data_offset)) count="${package_data_size}" iflag=fullblock status=none
+          test "$(sha256sum "${package_fdt}" | cut -d' ' -f1)" = "${expected_uboot_fdt}"
+          rm -f "${package_fdt}"
+
+      - name: Verify raw image offsets and Linux HT2 DTB
+        run: |
+          set -euo pipefail
+          board_dir="config/boards/${BOARD}"
+          expected_idbloader="ee4ea8d45f9ae9c70dc9ea0c8d3f3acc93063f9d078902940c811ce670672af3"
+          fit="${board_dir}/u-boot-h28k.itb"
+          fit_size="$(stat -c '%s' "${fit}")"
+          fit_sectors=$(( (fit_size + 511) / 512 ))
+          mapfile -t images < <(find output/images -maxdepth 1 -type f -name '*.img' -print | sort)
+          test "${#images[@]}" -ge 1
+
+          validate_image() {
+            local image="$1"
+            local actual fit_from_image mount_dir dtb
+            actual="$(dd if="${image}" bs=512 skip=64 count=616 iflag=fullblock status=none | sha256sum | cut -d' ' -f1)"
+            test "${actual}" = "${expected_idbloader}"
+            fit_from_image="$(mktemp)"
+            dd if="${image}" of="${fit_from_image}" bs=512 skip=16384 count="${fit_sectors}" iflag=fullblock status=none
+            truncate -s "${fit_size}" "${fit_from_image}"
+            cmp "${fit}" "${fit_from_image}"
+            rm -f "${fit_from_image}"
+
+            mount_dir="$(mktemp -d)"
+            sudo mount -o loop,ro,offset=$((32768 * 512)) "${image}" "${mount_dir}"
+            dtb="${mount_dir}/dtb/rockchip/rk3528-fastyumjin.dtb"
+            test -s "${dtb}"
+            test "$(fdtget -t s "${dtb}" / model)" = "Hinlink HT2"
+            fdtget -t s "${dtb}" / compatible | grep -q 'hinlink,ht2'
+            fdtget -t s "${dtb}" / compatible | grep -q 'rockchip,rk3528a'
+            test "$(fdtget -t s "${dtb}" /usbdrd/dwc3@fe500000 dr_mode)" = "host"
+            test "$(fdtget -t s "${dtb}" /hdmi@ff8d0000 status)" = "okay"
+            test "$(fdtget -t s "${dtb}" /mmc@ffbf0000 status)" = "okay"
+            test "$(fdtget -t x "${dtb}" /mmc@ffbf0000 bus-width)" = "8"
+            sudo umount "${mount_dir}"
+            rmdir "${mount_dir}"
+            printf 'verified_image=%s\n' "${image}"
+          }
+
+          for image in "${images[@]}"; do
+            validate_image "${image}"
+          done
+
+      - name: Assemble USB recovery package
+        run: |
+          set -euo pipefail
+          board_dir="config/boards/${BOARD}"
+          package_dir="output/usb-flash"
+          expected_loader="a45957495e21136736f312b94ada0f859ec4fad432f2810283da35f027ec41ca"
+          loader_url="https://raw.githubusercontent.com/armbian/rkbin/master/rk35/rk3528_spl_loader_v1.07.104.bin"
+          rm -rf "${package_dir}"
+          mkdir -p "${package_dir}"
+
+          mapfile -t images < <(find output/images -maxdepth 1 -type f -name '*.img' -print | sort)
+          test "${#images[@]}" -ge 1
+          cp "${images[0]}" "${package_dir}/hinlink-ht2-rk3528a-linux-6.18.img"
+          cp "${board_dir}/idbloader.img" "${package_dir}/idbloader.img"
+          cp "${board_dir}/u-boot-h28k.itb" "${package_dir}/u-boot-h28k.itb"
+
+          curl --fail --location --retry 3 "${loader_url}" -o "${package_dir}/rk3528_spl_loader_v1.07.104.bin"
+          test "$(sha256sum "${package_dir}/rk3528_spl_loader_v1.07.104.bin" | cut -d' ' -f1)" = "${expected_loader}"
+
+          fit_fdt="${package_dir}/u-boot-h28k.dtb"
+          fit_totalsize_hex="$(od -An -tx1 -N4 -j4 "${package_dir}/u-boot-h28k.itb" | tr -d '[:space:]')"
+          fit_data_offset_hex="$(fdtget -t x "${package_dir}/u-boot-h28k.itb" /images/fdt data-offset)"
+          fit_data_size_hex="$(fdtget -t x "${package_dir}/u-boot-h28k.itb" /images/fdt data-size)"
+          fit_header_size=$((16#${fit_totalsize_hex}))
+          fit_data_offset=$((16#${fit_data_offset_hex}))
+          fit_data_size=$((16#${fit_data_size_hex}))
+          fit_data_base=$(( ((fit_header_size + 2047) / 2048) * 2048 ))
+          dd if="${package_dir}/u-boot-h28k.itb" of="${fit_fdt}" bs=1 skip=$((fit_data_base + fit_data_offset)) count="${fit_data_size}" iflag=fullblock status=none
+          (cd "${package_dir}" && sha256sum -- *.bin *.dtb *.itb *.img > SHA256SUMS)
+
+          printf '%s\n' \
+            'HinLink HT2 / RK3528A USB recovery package' \
+            '==========================================' \
+            '' \
+            'The board has no SD-card slot. Its USB3.0 connector is the Rockchip recovery' \
+            'port: hold reset while connecting it to the computer. The computer should' \
+            'enumerate Maskrom or Loader.' \
+            '' \
+            'This package contains the Linux 6.18 image and the audited pre-Linux chain.' \
+            'The image write command below writes the board eMMC. Inspect SHA256SUMS and' \
+            'make a backup before running it. The workflow never runs these commands.' \
+            '' \
+            'Maskrom path:' \
+            '  rkdeveloptool ld' \
+            '  rkdeveloptool db rk3528_spl_loader_v1.07.104.bin' \
+            '  rkdeveloptool ld' \
+            '' \
+            'Loader path or after db:' \
+            '  rkdeveloptool wl 0 hinlink-ht2-rk3528a-linux-6.18.img' \
+            '  rkdeveloptool rd' \
+            '' \
+            'Do not use rkdeveloptool wl until the device mode and image checksum have' \
+            'been checked locally. Do not use an unrelated RK3528/RK3566 DDR or loader' \
+            'blob. The Linux device tree intentionally keeps DWC3 in host mode; that' \
+            'does not change the pre-Linux Maskrom/Loader recovery path.' \
+            > "${package_dir}/README-USB-FLASH.txt"
+          sha256sum "${package_dir}/README-USB-FLASH.txt" >> "${package_dir}/SHA256SUMS"
+          ls -lah "${package_dir}"
+
+      - name: Upload USB recovery artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hinlink-ht2-rk3528a-usb-6.18-${{ github.run_number }}
+          if-no-files-found: warn
+          compression-level: 0
+          path: |
+            output/usb-flash/*
+            output/images/*.img.sha256
+            output/images/*.txt
+            output/debs/linux-u-boot-hinlink-ht2-*.deb
+            output/logs/summary-build-*.md
