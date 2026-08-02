@@ -1,0 +1,452 @@
+RK3528A Hinlink HT2 Boot-Chain Audit Report
+============================================
+
+Audit time: 2026-08-02T16:57:40+08:00
+Host: Linux armbian 6.1.99-vendor-rk35xx aarch64
+Repository: https://github.com/hogge816/Armbian
+Repository commit: af7b4bcfb9e77b1b8b59372d98fbaf8a85aa1fdb
+Repository commit date: 2026-08-01T11:30:54Z
+Repository commit subject: ci(rk3528): continue after verification and upload artifacts
+
+Scope
+-----
+This is a read-only audit. No repository file was changed. No image was built.
+No eMMC write was performed. eMMC reads were limited to user-area sectors 64 and
+16384 plus read-only boot0/boot1 inspection.
+
+Executive conclusion
+--------------------
+The running device is a Hinlink HT2 based on Rockchip RK3528A. It is not
+possible to treat HT2 and X88Pro-13 as two independently validated DTB targets
+on this machine:
+
+1. /boot/dtb/rockchip/rk3528-hinlink-ht2.dtb and
+   /boot/dtb/rockchip/rk3528-x88pro13.dtb are byte-for-byte identical.
+   Both contain model "Hinlink HT2" and compatible
+   "hinlink,ht2", "rockchip,rk3528".
+
+2. The running Linux FDT has HT2 identity and RK3528A compatibility:
+   model "Hinlink HT2"
+   compatible "hinlink,ht2", "rockchip,rk3528a"
+
+3. The machine's currently booting raw startup chain is a hybrid chain:
+   - RKNS first-stage idblock at user-area sector 64, byte offset 32768.
+   - FIT/U-Boot package at user-area sector 16384, byte offset 8388608.
+   - The first-stage idblock is byte-for-byte identical to the repository's
+     config/boards/rockchip-rk3528-fastyumjin/idbloader.img.
+   - The FIT's embedded U-Boot FDT is byte-for-byte identical to the repository's
+     config/boards/rockchip-rk3528-fastyumjin/u-boot-h28k.dtb.
+   - The FIT configuration description is rk3528-hinlink-h28k.
+   - The Linux-stage FDT is HT2/Fastyumjin content and is passed to Linux after
+     U-Boot/boot.scr handling.
+
+4. Therefore the current known-good boot path is not a pure, separately built
+   HT2 chain. It uses the repository's Fastyumjin/H28K-named bootloader pieces
+   together with the HT2 Linux-stage device tree.
+
+5. The repository's RK3528 workflow is internally inconsistent for this device:
+   it builds BOARD=rockchip-rk3528-fastyumjin, validates a FIT description
+   rk3528-hinlink-h28k, uses u-boot-h28k.dtb, and does not build BOARD=hinlink-ht2.
+
+6. The repository's workflow named build-oec-turbo-6.18.yml is for RK3566,
+   not RK3528. The repository does contain rockchip64-6.18 patch and DTS
+   material, including rk3528-fastyumjin.dts, but there is no evidence in the
+   inspected workflow that it is a ready-to-run HT2 6.18 workflow.
+
+Hardware and live operating-system evidence
+--------------------------------------------
+Device-tree root:
+  model: Hinlink HT2
+  compatible: hinlink,ht2 ; rockchip,rk3528a
+
+CPU:
+  4 x ARM Cortex-A53, ARM64
+
+Memory:
+  MemTotal: 4006016 kB
+  Live DT memory reg begins at 0x200000 with size 0xfbe00000, which is
+  approximately 4 GiB minus reserved regions. The live DT memory property is
+  192 bytes because the vendor DT contains multiple address/size tuples,
+  followed by zero tuples.
+
+Storage:
+  /dev/mmcblk1: approximately 116.5 GiB eMMC
+  /dev/mmcblk1p1: 256 MiB, mounted /boot
+  /dev/mmcblk1p2: approximately 116.2 GiB, mounted /
+  eMMC device name: TWSC
+  eMMC boot0: 4 MiB
+  eMMC boot1: 4 MiB
+  eMMC boot0 and boot1 are zero-filled in the 4 MiB read samples.
+
+Partition table:
+  GPT first LBA: 2048
+  /dev/mmcblk1p1 start: sector 32768, size 524288 sectors, label bootfs
+  /dev/mmcblk1p2 start: sector 557056, label rootfs
+
+Kernel:
+  6.1.99-vendor-rk35xx
+  Built image: /boot/Image
+  Kernel command line includes:
+    earlycon=uart8250,mmio32,0xff9f0000
+    console=ttyS0,1500000
+    PCB-665f3e4817
+    bl31-v1.17
+    uboot-rmbian-201-04/09/2025
+    androidboot.fwver=ddr-v1.09
+
+Working hardware paths observed in Linux:
+  eMMC enumerates as HS400 Enhanced strobe.
+  HDMI controller ff8d0000 is detected and bound.
+  GMAC ffbe0000 enumerates with RTL8211F Gigabit Ethernet.
+  eth0 negotiated 1000Mb/s full duplex.
+  Linux boot reached userspace and mounted both root and boot filesystems.
+
+Current Linux-stage FDT and /boot DTB comparison
+------------------------------------------------
+Hashes:
+  live FDT:                                                  49d65314d052f7977d124f0b620853a357eb007f675da753619662e0f71d4c71
+  /boot/dtb/rockchip/rk3528-hinlink-ht2.dtb:                0782d267342d83a5e944e6064d2a27f12427521668f7936c44f09b4bf025199d
+  /boot/dtb/rockchip/rk3528-x88pro13.dtb:                   0782d267342d83a5e944e6064d2a27f12427521668f7936c44f09b4bf025199d
+  /boot/dtb-6.1.99-vendor-rk35xx/rockchip/rk3528-hinlink-ht2.dtb:
+                                                             0782d267342d83a5e944e6064d2a27f12427521668f7936c44f09b4bf025199d
+  /boot/dtb-6.1.99-vendor-rk35xx/rockchip/rk3528-x88pro13.dtb:
+                                                             0782d267342d83a5e944e6064d2a27f12427521668f7936c44f09b4bf025199d
+
+The live FDT is not byte-identical to the /boot HT2 file. Focused normalized
+DTS differences are:
+  /boot file compatible: hinlink,ht2 ; rockchip,rk3528
+  live compatible:       hinlink,ht2 ; rockchip,rk3528a
+  live adds serial-number: a2af6a7fd74161ce
+  live chosen.bootargs contains the root UUID, console, ubootpart, USB storage
+    quirks, vendor firmware tags and other boot arguments.
+  live chosen contains initrd start/end addresses.
+  live adds a local MAC address to ethernet@ffbe0000.
+  live adds the memory node and its runtime memory map.
+
+These differences are consistent with U-Boot and the boot script fixing up the
+Linux FDT before boot. They do not prove that /boot/dtb/rk3528-hinlink-ht2.dtb
+alone is a bootable complete image.
+
+DTB identity comparison
+------------------------
+A. HT2 file in current /boot:
+  path: /boot/dtb/rockchip/rk3528-hinlink-ht2.dtb
+  size: 100184 bytes
+  model: Hinlink HT2
+  compatible: hinlink,ht2 ; rockchip,rk3528
+  USB DWC3 dr_mode: host
+  eMMC bus-width: 8
+  Ethernet phy-mode: rgmii-rxid
+  HDMI status: okay
+  hash: 0782d267342d83a5e944e6064d2a27f12427521668f7936c44f09b4bf025199d
+
+B. X88Pro-13 file in current /boot:
+  path: /boot/dtb/rockchip/rk3528-x88pro13.dtb
+  size: 100184 bytes
+  model: Hinlink HT2
+  compatible: hinlink,ht2 ; rockchip,rk3528
+  USB DWC3 dr_mode: host
+  eMMC bus-width: 8
+  Ethernet phy-mode: rgmii-rxid
+  HDMI status: okay
+  hash: 0782d267342d83a5e944e6064d2a27f12427521668f7936c44f09b4bf025199d
+
+C. H28K DTB in current /boot:
+  path: /boot/dtb/rockchip/rk3528-hinlink-h28k.dtb
+  size: 98044 bytes
+  model: Hinlink H28K
+  compatible: hlink,h28k ; rockchip,rk3528
+  USB DWC3 dr_mode: otg
+  eMMC bus-width: 8
+  Ethernet phy-mode: rgmii
+  HDMI status: disabled
+  hash: c16d301ade2c146aab3638665b62d65cb3ae14a513f12e9bad438cbf7ef39d72
+
+D. Repository Linux-stage Fastyumjin DTB:
+  path: config/booting/rockchip/rk3528-fastyumjin.dtb
+  size: 101022 bytes
+  model: Hinlink HT2
+  compatible: hinlink,ht2 ; rockchip,rk3528a
+  serial-number: a2af6a7fd74161ce
+  USB DWC3 dr_mode: host
+  eMMC bus-width: 8
+  Ethernet phy-mode: rgmii-rxid
+  HDMI status: okay
+  hash: fe02acde052d7c80a95509b5bee12dbd6612c84ed161cab97fb64a6eb008556c
+
+E. Repository U-Boot FDT:
+  path: config/boards/rockchip-rk3528-fastyumjin/u-boot-h28k.dtb
+  size: 7992 bytes
+  model: Hinlink H28K
+  compatible: hinlink,h28k ; rockchip,rk3528
+  hash: db83a0738a78c82a0c5e5913509555359900fe2075497362dabc7ad2e4a3decc
+
+Raw eMMC boot-chain evidence
+-----------------------------
+The following reads were performed read-only:
+
+1. eMMC user area, sector 64, 616 sectors, 315392 bytes:
+   SHA256: ee4ea8d45f9ae9c70dc9ea0c8d3f3acc93063f9d078902940c811ce670672af3
+   This exactly matches:
+   config/boards/rockchip-rk3528-fastyumjin/idbloader.img
+   SHA256: ee4ea8d45f9ae9c70dc9ea0c8d3f3acc93063f9d078902940c811ce670672af3
+
+   The first bytes are RKNS:
+   52 4b 4e 53
+
+   Strings include:
+   ddr-v1.09 4bit PCB-665f3e4817
+   DDR 665f3e4817 huan.he 24/01/30-09:26:15,fwver: v1.09 4bit PCB
+
+2. eMMC user area, sector 16384, contains a FIT package.
+   FIT external data starts at byte offset 0x800 within the captured FIT.
+   FIT header totalsize: 1971 bytes.
+   FIT timestamp: Wed Apr 9 19:22:08 2025.
+   FIT description: FIT Image with ATF/OP-TEE/U-Boot/MCU.
+   FIT configuration description: rk3528-hinlink-h28k.
+
+   FIT images:
+   - U-Boot: data size 0x118b88, load address 0x00200000
+     declared SHA256:
+     1fcd490cbea5641f7c80af3093d083defc5971c6cef7952ce56f88fa6a557d40
+   - ATF-1: data size 0x22d62, load address 0x00080000
+     declared SHA256:
+     2493d19c1ea766427c238ac7f34d055548136f97b0206de786173585f595558f
+   - ATF-2: data size 0x3000, load address 0xfe48d000
+     declared SHA256:
+     8ce368911147cbcc0a3659cbe5af8ca04c9e246eded8fae271d2b6475a2d45d6
+   - ATF-3: data size 0x1c24, load address 0xfe490000
+     declared SHA256:
+     bc35c9ef8551f05bb8cab064be4b6cbcb98ea10a67ede092016ccce04200bd09
+   - U-Boot FDT: data size 0x1f38 (7992 bytes)
+     declared SHA256:
+     db83a0738a78c82a0c5e5913509555359900fe2075497362dabc7ad2e4a3decc
+
+   The U-Boot FDT extracted from this current FIT has exactly the same SHA256
+   as the repository's u-boot-h28k.dtb:
+   db83a0738a78c82a0c5e5913509555359900fe2075497362dabc7ad2e4a3decc
+
+3. The FIT data end is approximately byte offset 0x142f38 relative to the
+   captured FIT start, requiring about 2584 sectors. It is well inside the
+   8 MiB boot package region and is followed by the GPT/bootfs layout.
+
+4. eMMC boot0 and boot1 are 4 MiB and the inspected contents are all zero.
+   The active startup chain is therefore in the user area, not eMMC boot0/boot1.
+
+Repository audit
+-----------------
+Files were fetched from repository commit
+  af7b4bcfb9e77b1b8b59372d98fbaf8a85aa1fdb
+and stored temporarily under /tmp/ht2-audit-repo.
+
+Relevant repository hashes:
+  config/boards/hinlink-ht2.csc:
+    45200b75592fec10098f0dce9b8330f2471bf9065eee2e048870dcd4e674bc60
+  config/boards/hinlink-h28k.csc:
+    abd80e501f5e30aa3bfdb7a0313e4b8dba77848fbdc7bed50f5db77bfbd093fe
+  config/boards/rockchip-rk3528-fastyumjin.csc:
+    afe3e01ff0d54a2122cb5883d9557a17fb9098eb5699e866965be68468fef7b7
+  config/boards/rockchip-rk3528-fastyumjin/idbloader.img:
+    ee4ea8d45f9ae9c70dc9ea0c8d3f3acc93063f9d078902940c811ce670672af3
+  config/boards/rockchip-rk3528-fastyumjin/u-boot-h28k.dtb:
+    db83a0738a78c82a0c5e5913509555359900fe2075497362dabc7ad2e4a3decc
+  config/booting/rockchip/rk3528-fastyumjin.dtb:
+    fe02acde052d7c80a95509b5bee12dbd6612c84ed161cab97fb64a6eb008556c
+  config/booting/rockchip/rk3528-fastyumjin.dts:
+    9aa80b2970686bdba5b4a884fcf196e79f4ee49e4e327335e672a092b1282d33
+  .github/workflows/build-rockchip-rk3528.yml:
+    e4fc2c9f048c52e49b7b41acd0770f6417a17e59f783c177de7006914a30d199
+  build-rockchip-rk3528.yml:
+    137200ff06cf14a215828883d7c9fc0b4215acc3a9832c1a8dec2b9c2fc255a5
+  .github/workflows/build-oec-turbo-6.18.yml:
+    bb59ef91c0cd5634441927ff11c8104352a5b4dbcb6d32d02de702201047e7e8
+  patch/u-boot/legacy/u-boot-radxa-rk35xx/defconfig/hinlink_rk3528_defconfig:
+    b0d10f66b41bffd900a7abd0e616c521c3528d6a00bd5763358ffc9554d882e9
+  patch/u-boot/legacy/u-boot-radxa-rk35xx/dt/rk3528-hinlink-h28k.dts:
+    358919b9be8e62a1f759bba952e23e9de4ff1aa45776e65b88ffb62f32c17966
+
+Board configuration findings:
+
+A. config/boards/hinlink-ht2.csc:
+  BOARD_NAME="HinLink HT2"
+  BOOTCONFIG="hinlink_rk3528_defconfig"
+  KERNEL_TARGET="vendor"
+  BOOT_FDT_FILE="rockchip/rk3528-hinlink-ht2.dtb"
+  BOOT_SCENARIO="spl-blobs"
+
+B. config/boards/hinlink-h28k.csc:
+  BOARD_NAME="HinLink H28k"
+  BOOTCONFIG="hinlink_rk3528_defconfig"
+  BOOT_FDT_FILE="rockchip/rk3528-hinlink-h28k.dtb"
+  BOOT_SCENARIO="spl-blobs"
+
+C. config/boards/rockchip-rk3528-fastyumjin.csc:
+  BOARD_NAME="Fastyumjin-3528A"
+  BOARDFAMILY="rockchip64"
+  BOOTCONFIG="rk3528_defconfig"
+  BOOT_FDT_FILE="rockchip/rk3528-fastyumjin.dtb"
+  BOOT_SCENARIO="spl-blobs"
+  BOOTSOURCE=https://github.com/rockchip-linux/u-boot.git
+  BOOTBRANCH=branch:next-dev
+  BOOTPATCHDIR=legacy/u-boot-rockchip-rk3528
+
+  The same file explicitly:
+  - stages BL31 before FIT generation;
+  - copies the known-good idbloader.img;
+  - copies u-boot-h28k.dtb as u-boot.dtb;
+  - rewrites u-boot.its descriptions from rk3528-evb to rk3528-hinlink-h28k;
+  - rebuilds u-boot.itb.
+
+D. .github/workflows/build-rockchip-rk3528.yml:
+  workflow name: Build rockchip-rk3528-fastyumjin
+  BOARD: rockchip-rk3528-fastyumjin
+  vendor path sets KERNEL_MAJOR_MINOR=6.1
+  non-vendor inputs are vendor/current/legacy/edge, not 6.18
+  verification requires the FDT hash of u-boot-h28k.dtb
+  verification requires FIT description rk3528-hinlink-h28k
+  verification requires idbloader hash
+    ee4ea8d45f9ae9c70dc9ea0c8d3f3acc93063f9d078902940c811ce670672af3
+
+E. .github/workflows/build-oec-turbo-6.18.yml:
+  workflow name: Build rk3566-wxy-oec-turbo-4g
+  BOARD: rockchip-rk3566-wxy-oec-turbo-4g
+  This workflow is unrelated to RK3528A/HT2 and must not be used as the HT2
+  6.18 build entry point.
+
+F. 6.18 repository support:
+  patch/kernel/archive/rockchip64-6.18 exists.
+  It contains dt/rk3528-fastyumjin.dts and RK3528 patches, including:
+  - rk3528-02-arm64-dts-rockchip-Add-SFC-node-for-RK3528.patch
+  - rk3528-13-phy-rockchip-inno-usb2-fix-otg-timer-cleanup.patch
+  No inspected workflow directly builds BOARD=hinlink-ht2 with 6.18.
+
+U-Boot and USB recovery evidence
+--------------------------------
+Repository U-Boot defconfig contains:
+  CONFIG_TARGET_EVB_RK3528=y
+  CONFIG_DEFAULT_DEVICE_TREE="rk3528-hinlink-h28k"
+  CONFIG_USB_DWC3=y
+  CONFIG_USB_DWC3_GADGET=y
+  CONFIG_USB_DWC3_GENERIC=y
+  CONFIG_USB_GADGET=y
+  CONFIG_USB_GADGET_VENDOR_NUM=0x2207
+  CONFIG_USB_GADGET_PRODUCT_NUM=0x350a
+  CONFIG_USB_GADGET_DOWNLOAD=y
+  CONFIG_DEBUG_UART_BASE=0xff9f0000
+  CONFIG_BAUDRATE=1500000
+
+The running Linux kernel has USB DWC3 dual-role, gadget, configfs and USB role
+switch support compiled in. However, the current live DT says:
+  /usbdrd/dwc3@fe500000 dr_mode = host
+and no UDC was registered under /sys/class/udc.
+
+Observed host-side lsusb while Linux is running showed only Linux root hubs;
+no Rockchip Loader/Maskrom/USB download ID was present.
+
+This proves only that the running Linux state is host mode and not presenting a
+Linux gadget. It does not identify the physical OTG connector or prove whether
+BootROM sampled the recovery key. A host-side test while the board is fully
+powered off and entering recovery is still required.
+
+Evidence of likely boot failure class
+--------------------------------------
+The device currently reaches Linux with the same raw idblock and H28K U-Boot
+FDT that the repository workflow calls known-good. Thus the following are
+not the most likely first causes for an ordinary Linux boot failure on this
+machine:
+  - RK3528 DDR initialization in the current idblock;
+  - basic eMMC raw offsets used by the current chain;
+  - basic Linux-stage HT2 identity;
+  - basic HDMI/GMAC/eMMC hardware availability.
+
+High-risk differences in external HT2/X88Pro images are instead likely to be:
+  - replacing the RKNS idblock with a board-mismatched DDR blob;
+  - replacing the H28K U-Boot FIT FDT or its ATF/BL31 combination;
+  - changing the 8 MiB FIT location or GPT/raw boot offsets;
+  - using an unverified X88Pro name for a duplicated HT2 DTB;
+  - using an unpatched upstream/mainline RK3528 DTS against the vendor U-Boot
+    and vendor kernel ABI;
+  - changing U-Boot FIT configuration/verification or Android/RKNS packaging.
+
+These are ranked hypotheses, not direct proof of the contents of each external
+firmware image, because those external images were not supplied for hashing.
+
+Vendor runtime warnings observed
+--------------------------------
+The running system emits these warnings/errors:
+  - rockchip-usb2phy ffdf0000: error -ENXIO: IRQ index 0 not found
+  - OTG PHY supply and vbus-supply properties are absent
+  - HDMI avdd-0v9/avdd-1v8 supply properties are absent
+  - display subsystem: failed to parse loader memory
+  - GMAC eth_lpi IRQ absent
+  - GMAC phy supply absent; dummy regulator used
+  - GMAC rx_delay absent; driver sets 0xffffffff
+  - GMAC mac_clk_rx/mac_clk_tx/clk_mac_speed absent
+  - dwmmc reports missing normal/idle pinctrl states for some controllers
+
+The same live system nevertheless probes eMMC, HDMI, GMAC and Linux successfully.
+These messages are compatibility risks for future kernel/U-Boot changes, not a
+proven explanation for the pre-Linux boot failures.
+
+What is proven vs not proven
+----------------------------
+Proven:
+  - Hardware identity is Hinlink HT2 / RK3528A.
+  - Current HT2 and X88Pro DTB files are identical aliases.
+  - Current eMMC user-area sector 64 exactly contains the repository idbloader.
+  - Current eMMC user-area sector 16384 contains an H28K-described FIT.
+  - Current FIT FDT exactly matches repository u-boot-h28k.dtb.
+  - Current Linux reaches userspace with an HT2/RK3528A runtime FDT.
+  - Repository 6.18 workflow shown in the audit is RK3566, not RK3528.
+
+Not proven without external files or serial capture during a failed boot:
+  - Which exact stage failed in the previously downloaded external images.
+  - Whether the physical reset button is electrically connected to the RK3528
+    SARADC/recovery path.
+  - Which physical USB connector is connected to the RK3528 OTG-capable port.
+  - Whether a failed external image changed DDR firmware, BL31, FIT, DTB, raw
+    offsets, or all of them.
+
+Required implementation gates
+-----------------------------
+Before any repository modification or 6.18 build for this machine:
+
+1. Preserve the current raw chain as reference artifacts:
+   idbloader SHA256 ee4ea8d45f9ae9c70dc9ea0c8d3f3acc93063f9d078902940c811ce670672af3
+   U-Boot FDT SHA256 db83a0738a78c82a0c5e5913509555359900fe2075497362dabc7ad2e4a3decc
+   raw locations: sector 64 and sector 16384.
+
+2. Build a new SD-only test image first. Do not write eMMC.
+
+3. Keep the current idbloader and FIT packaging unchanged in the first test.
+   Change only Linux kernel/rootfs and the Linux-stage DTB after proving the
+   image packaging remains identical at the raw boot offsets.
+
+4. Use a new explicit HT2 board target or a carefully scoped derivative of the
+   Fastyumjin target. Do not call a H28K/Fastyumjin bootloader output an HT2
+   image without recording that it is the same mixed chain as the running host.
+
+5. Do not use build-oec-turbo-6.18.yml for this device.
+
+6. For 6.18, verify that the build actually applies the RK3528 DTS and patches,
+   then inspect the generated image's idblock, FIT description, embedded U-Boot
+   FDT, Linux DTB and raw offsets before any hardware test.
+
+7. Capture a serial log at 1500000 baud for any SD test. A no-display failure
+   must be classified by the last visible stage: BootROM/DDR, U-Boot, kernel
+   earlycon, or rootfs.
+
+8. Do not short eMMC pins or write boot0/boot1 based only on this report.
+
+Temporary audit artifacts
+-------------------------
+Live capture:
+  /tmp/ht2-audit-live/
+Repository snapshot:
+  /tmp/ht2-audit-repo/
+Comparison files:
+  /tmp/ht2-audit-compare/
+This report:
+  /tmp/ht2-boot-chain-audit-20260802.txt
+
+End of report.
