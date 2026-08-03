@@ -34,7 +34,8 @@ function extension_finish_config__900_rkdevflash() {
 		exit_with_error "rkdevflash: ROCKUSB_BLOB is unset, unsupported LINUXFAMILY '${LINUXFAMILY}'?"
 	fi
 	declare -g -r rkdeveloptool_spl_loader_blob="${rkdeveloptool_spl_loader_blob}"
-	declare -g -r rkdeveloptool_spl_loader_blob_path="${SRC}/cache/sources/rkbin-tools/${rkdeveloptool_spl_loader_blob}"
+	declare -g -r rkdeveloptool_spl_loader_blob_path="${ROCKUSB_BLOB_PATH:-"${SRC}/cache/sources/rkbin-tools/${rkdeveloptool_spl_loader_blob}"}"
+	declare -g -r rkdeveloptool_spl_loader_blob_sha256="${ROCKUSB_BLOB_SHA256:-}"
 
 }
 
@@ -50,6 +51,14 @@ function host_dependencies_ready__rkdevflash() {
 
 	if [[ ! -f "${rkdeveloptool_spl_loader_blob_path}" ]]; then
 		exit_with_error "rkdevflash: SPL loader blob not found: '${rkdeveloptool_spl_loader_blob_path}'"
+	fi
+	if [[ -n "${rkdeveloptool_spl_loader_blob_sha256}" ]]; then
+		declare actual_loader_sha256
+		actual_loader_sha256="$(sha256sum "${rkdeveloptool_spl_loader_blob_path}" | cut -d' ' -f1)"
+		if [[ "${actual_loader_sha256}" != "${rkdeveloptool_spl_loader_blob_sha256}" ]]; then
+			exit_with_error "rkdevflash: SPL loader checksum mismatch: expected '${rkdeveloptool_spl_loader_blob_sha256}', got '${actual_loader_sha256}'"
+		fi
+		display_alert "RockUSB loader checksum verified" "${EXTENSION} :: ${actual_loader_sha256}" "info"
 	fi
 
 	check_rkdeveloptool # logs the version of rkdeveloptool

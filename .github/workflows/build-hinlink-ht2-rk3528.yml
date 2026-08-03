@@ -18,6 +18,7 @@ on:
       - "config/boards/hinlink-ht2/**"
       - "config/boards/rockchip-rk3528-fastyumjin.csc"
       - "config/booting/rockchip/rk3528-fastyumjin.dtb"
+      - "extensions/rkdevflash.sh"
       - "patch/kernel/archive/rockchip64-6.18/**"
 
 permissions:
@@ -68,9 +69,12 @@ jobs:
           shopt -s nullglob
           images=(output/images/*.img)
           test "${#images[@]}" -ge 1
-          for image in "${images[@]}"; do
-            sha256sum "${image}" > "${image}.sha256"
-          done
+          (
+            cd output/images
+            for image in "${images[@]##*/}"; do
+              sha256sum "${image}" > "${image}.sha256"
+            done
+          )
 
       - name: Verify audited pre-Linux chain and generated package
         run: |
@@ -178,8 +182,10 @@ jobs:
           set -euo pipefail
           board_dir="config/boards/${BOARD}"
           package_dir="output/usb-flash"
-          expected_loader="a45957495e21136736f312b94ada0f859ec4fad432f2810283da35f027ec41ca"
-          loader_url="https://raw.githubusercontent.com/armbian/rkbin/master/rk35/rk3528_spl_loader_v1.07.104.bin"
+          expected_loader="d69a569e7474d9d5d8942bafc881c3158dd161fdce45447857ae860cd239067f"
+          expected_loader_size="461134"
+          loader_name="rk3528_spl_loader_v1.09.105.bin"
+          loader_path="config/boards/${BOARD}/${loader_name}"
           rm -rf "${package_dir}"
           mkdir -p "${package_dir}"
 
@@ -189,8 +195,12 @@ jobs:
           cp "${board_dir}/idbloader.img" "${package_dir}/idbloader.img"
           cp "${board_dir}/u-boot-h28k.itb" "${package_dir}/u-boot-h28k.itb"
 
-          curl --fail --location --retry 3 "${loader_url}" -o "${package_dir}/rk3528_spl_loader_v1.07.104.bin"
-          test "$(sha256sum "${package_dir}/rk3528_spl_loader_v1.07.104.bin" | cut -d' ' -f1)" = "${expected_loader}"
+          test -s "${loader_path}"
+          test "$(stat -c '%s' "${loader_path}")" = "${expected_loader_size}"
+          test "$(sha256sum "${loader_path}" | cut -d' ' -f1)" = "${expected_loader}"
+          strings -a "${loader_path}" | grep -q 'ddr-v1.09 4bit PCB-665f3e4817'
+          cp "${loader_path}" "${package_dir}/${loader_name}"
+          test "$(sha256sum "${package_dir}/${loader_name}" | cut -d' ' -f1)" = "${expected_loader}"
 
           fit_fdt="${package_dir}/u-boot-h28k.dtb"
           fit_totalsize_hex="$(od -An -tx1 -N4 -j4 "${package_dir}/u-boot-h28k.itb" | tr -d '[:space:]')"
@@ -217,7 +227,7 @@ jobs:
             '' \
             'Maskrom path:' \
             '  rkdeveloptool ld' \
-            '  rkdeveloptool db rk3528_spl_loader_v1.07.104.bin' \
+            "  rkdeveloptool db ${loader_name}" \
             '  rkdeveloptool ld' \
             '' \
             'Loader path or after db:' \
@@ -229,7 +239,7 @@ jobs:
             'blob. The Linux device tree intentionally keeps DWC3 in host mode; that' \
             'does not change the pre-Linux Maskrom/Loader recovery path.' \
             > "${package_dir}/README-USB-FLASH.txt"
-          sha256sum "${package_dir}/README-USB-FLASH.txt" >> "${package_dir}/SHA256SUMS"
+          (cd "${package_dir}" && sha256sum README-USB-FLASH.txt >> SHA256SUMS)
           ls -lah "${package_dir}"
 
       - name: Upload USB recovery artifacts

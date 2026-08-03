@@ -15,6 +15,17 @@ BOOT_LOGO="no"
 BOOT_FDT_FILE="rockchip/rk3528-fastyumjin.dtb"
 SERIALCON="ttyS0:1500000"
 
+# The shared RK3528 default points at a generic v1.07 USB loader. HT2 uses
+# the v1.09 4-bit PCB loader verified against the audited eMMC DDR blob.
+HT2_ROCKUSB_BLOB="rk3528_spl_loader_v1.09.105.bin"
+HT2_ROCKUSB_BLOB_SHA256="d69a569e7474d9d5d8942bafc881c3158dd161fdce45447857ae860cd239067f"
+
+function post_family_config__ht2_use_v109_rockusb() {
+	declare -g ROCKUSB_BLOB="board-local/${HT2_ROCKUSB_BLOB}"
+	declare -g ROCKUSB_BLOB_PATH="${SRC}/config/boards/hinlink-ht2/${HT2_ROCKUSB_BLOB}"
+	declare -g ROCKUSB_BLOB_SHA256="${HT2_ROCKUSB_BLOB_SHA256}"
+}
+
 # These values are the reference chain read from the running HT2 eMMC.
 HT2_KNOWN_GOOD_IDBLOADER_SHA256="ee4ea8d45f9ae9c70dc9ea0c8d3f3acc93063f9d078902940c811ce670672af3"
 HT2_KNOWN_GOOD_FIT_SHA256="135b99eb7f1072984c9f028d13db536e1e4e41104bf81f6f50080313c087769c"

@@ -1,0 +1,107 @@
+RK3528A HinLink HT2 RockUSB v1.09 Verification
+================================================
+
+Date: 2026-08-03
+Target branch: feat/rk3528-ht2-usb-6.18
+Base commit: b378c7c85377d5ac9bc003d9fb64d4cd452d5e3c
+
+Scope
+-----
+This record covers the USB MaskROM-to-Loader blob used by rkdeveloptool db.
+It does not replace the normal eMMC boot chain. The audited eMMC first-stage
+idblock remains the separate v1.09 RKNS artifact at LBA64.
+
+Reason for the change
+---------------------
+The previous USB recovery package used the generic:
+  rk3528_spl_loader_v1.07.104.bin
+  SHA256 a45957495e21136736f312b94ada0f859ec4fad432f2810283da35f027ec41ca
+
+Its unpacked DDR component was 59392 bytes and identified as:
+  DDR V1.07 4fe5906c9d
+
+The audited HT2 eMMC idblock contains a different DDR component at offset
+0x800:
+  DDR v1.09 4bit PCB-665f3e4817
+  raw size 61000 bytes
+  SHA256 4ba4abb53a8baeee9f707fff43e6dfdc4334e587c6e49477d8e50fa560aa72bd
+
+The v1.07 and HT2 v1.09 DDR binaries differ in 51489 of the first 59392
+compared bytes; this is not a version-string-only difference.
+
+Input provenance
+----------------
+The v1.09 components were read from the official rockchip-linux/rkbin
+history commit:
+  0b3e87afc2abd8dd6eb0052cd1be00de94a96637
+  rk3528: ddr: update ddrbin to v1.09
+
+Inputs used for the HT2 RockUSB package:
+  rk3528_ddr_1056MHz_4BIT_PCB_v1.09.bin
+    SHA256 4ba4abb53a8baeee9f707fff43e6dfdc4334e587c6e49477d8e50fa560aa72bd
+  rk3528_usbplug_v1.03.bin
+    SHA256 c1663119cd4cb898ae8e206d5dfdf335e2afac359df8d03a2177426e5aa7ddc5
+  rk3528_spl_v1.05.bin
+    SHA256 707b27005fda6ddf8e223b5564bf2b2b0a962fdc89ff803095df7dcbc4fa9beb
+
+The official historical RK3528MINIALL.ini selects the same v1.09-era
+DDR/USB plug/SPL combination. The current rkbin master contains newer RK3528
+v1.13 material and was not used for this HT2 repair.
+
+Generated artifact
+------------------
+Output:
+  config/boards/hinlink-ht2/rk3528_spl_loader_v1.09.105.bin
+
+Generated with Rockchip boot_merger version 1.35 using the RK3528 loader
+format, version 1.04 container header, one code471 entry, one code472 entry,
+and three loader entries.
+
+  Size:   461134 bytes
+  SHA256: d69a569e7474d9d5d8942bafc881c3158dd161fdce45447857ae860cd239067f
+
+Static verification performed:
+  - boot_merger unpack completed successfully.
+  - unpacked DDR contains DDR v1.09 4bit PCB-665f3e4817.
+  - unpacked FlashData matches the v1.09 DDR input (zero padding allowed).
+  - unpacked FlashBoot matches the v1.05 SPL input (zero padding allowed).
+  - unpacked USB plug matches the v1.03 USB plug input (zero padding allowed).
+  - boot_merger CRC was recomputed with the source CRC table:
+      stored   0x761e4f9e
+      computed 0x761e4f9e
+  - loader header begins with LDR and has the expected entry counts.
+
+Repository integration
+----------------------
+Only the HT2 board overrides the shared RK3528 USB blob:
+  ROCKUSB_BLOB=board-local/rk3528_spl_loader_v1.09.105.bin
+
+The rkdevflash extension resolves ROCKUSB_BLOB_PATH when supplied by a board
+configuration and verifies ROCKUSB_BLOB_SHA256 before executing rkdeveloptool
+db. Other boards retain the existing rkbin cache path and behavior.
+
+The HT2 GitHub workflow now:
+  - packages the checked-in v1.09 Loader instead of downloading v1.07;
+  - verifies its size, SHA256, and v1.09 PCB marker;
+  - uses the v1.09 filename in README-USB-FLASH.txt;
+  - writes image checksum files from output/images so they are directly
+    checkable inside the artifact rather than referring to runner paths.
+
+Limits
+------
+This is a static and packaging verification. It proves that the selected
+RockUSB container carries the HT2-audited DDR v1.09 4-bit PCB code. It does
+not prove a physical board recovery until the following are captured on the
+actual HT2:
+  rkdeveloptool ld in Maskrom mode;
+  rkdeveloptool db rk3528_spl_loader_v1.09.105.bin;
+  rkdeveloptool ld after db;
+  serial output and a controlled read/write test.
+
+The normal eMMC image chain remains separately pinned and verified as:
+  LBA64 idblock SHA256
+    ee4ea8d45f9ae9c70dc9ea0c8d3f3acc93063f9d078902940c811ce670672af3
+  LBA16384 FIT SHA256
+    135b99eb7f1072984c9f028d13db536e1e4e41104bf81f6f50080313c087769c
+
+End of record.
