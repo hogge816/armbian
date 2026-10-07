@@ -2,7 +2,7 @@
 #
 # This target inherits the RK3528 boot implementation that is known to boot
 # the audit host, then pins the complete pre-Linux FIT to the audited copy.
-# The Linux-stage DTB remains the HT2/RK3528A Fastyumjin DTS.
+# The Linux-stage DTB uses the HT2 port to the target 6.18 SoC bindings.
 source "${SRC}/config/boards/rockchip-rk3528-fastyumjin.csc"
 
 BOARD_NAME="HinLink HT2"
@@ -12,7 +12,7 @@ INTRODUCED="2024"
 KERNEL_TARGET="current"
 FULL_DESKTOP="no"
 BOOT_LOGO="no"
-BOOT_FDT_FILE="rockchip/rk3528-fastyumjin.dtb"
+BOOT_FDT_FILE="rockchip/rk3528-hinlink-ht2.dtb"
 SERIALCON="ttyS0:1500000"
 
 # The shared RK3528 default points at a generic v1.07 USB loader. HT2 uses

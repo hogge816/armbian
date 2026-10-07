@@ -13,7 +13,7 @@ BOOT_FDT_FILE="rockchip/rk3528-fastyumjin.dtb"
 BOOT_SCENARIO="spl-blobs"
 IMAGE_PARTITION_TABLE="gpt"
 BOOTFS_TYPE="ext4"
-SERIALCON="ttyS2"
+SERIALCON="ttyS0:1500000"
 # Use U-Boot with RK3528 board support
 BOOTSOURCE='https://github.com/rockchip-linux/u-boot.git'
 BOOTBRANCH='branch:next-dev'
@@ -25,6 +25,18 @@ KERNEL_DRIVERS_SKIP="rtw88 rtw88_8822be rtw88_8822ce rtw88_8822bu rtw88_8822cu"
 # The RK3399 Type-C/DWC3 compatibility series is not applicable to this
 # RK3528 board. Skip the complete dependent series, not just its base patch.
 KERNEL_PATCHES_TO_SKIP="rk3399-usbc-phy-rockchip-naneng-Add-fallback-for-old-DTs.patch rk3399-usbc-usb-dwc3-Track-the-power-state-of-usb3_generic_phy.patch rk3399-usbc-usb-dwc3-Extend-reset-quirk-support-to-include-role-.patch"
+
+# RK3528 debug UART is UART0. Select the existing ttyS0 bootscript after the
+# rockchip64 family has installed its default ttyS2 script.
+function post_family_config__fastyumjin_mainline_console() {
+	declare -g BOOTSCRIPT="boot-rockchip64-ttyS0.cmd:boot.cmd"
+	declare -g SERIALCON="ttyS0:1500000"
+	# The vendor clock/reset ABI is incompatible with the 6.18 SoC bindings.
+	# Keep vendor builds on their vendor DTS; select the port only for 6.18.
+	if [[ "${KERNEL_MAJOR_MINOR}" == "6.18" && "${BRANCH}" == "current" ]]; then
+		declare -g BOOT_FDT_FILE="rockchip/rk3528-hinlink-ht2.dtb"
+	fi
+}
 
 # The old Rockchip FIT generator reads bl31.elf from the U-Boot worktree.
 # Armbian passes BL31 as a make variable, so stage it explicitly before make.
@@ -54,25 +66,27 @@ function post_uboot_custom_postprocess__fastyumjin_known_good_idbloader() {
 	run_host_command_logged cp -f "${idbloader}" idbloader.img
 }
 
-# The stock RK3528 U-Boot FIT uses a board-specific pre-relocation DTB.
-# Replace only the FIT FDT after Armbian has generated the new U-Boot and ATF.
-function post_uboot_custom_postprocess__fastyumjin_known_good_uboot_fdt() {
-	local uboot_fdt="${SRC}/config/boards/rockchip-rk3528-fastyumjin/u-boot-h28k.dtb"
-	local expected_sha256="db83a0738a78c82a0c5e5913509555359900fe2075497362dabc7ad2e4a3decc"
-	local actual_sha256
+# Keep the complete pre-Linux payload read from the working HT2 eMMC. Linux
+# Image, initrd, DTB and rootfs remain independently replaceable on the image.
+function post_uboot_custom_postprocess__fastyumjin_known_good_fit() {
+	local fit="${SRC}/config/boards/rockchip-rk3528-fastyumjin/u-boot-h28k.itb"
+	local expected_sha256="135b99eb7f1072984c9f028d13db536e1e4e41104bf81f6f50080313c087769c"
+	local expected_size="1322808"
+	local actual_sha256 actual_size
 
-	[[ -s "${uboot_fdt}" ]] ||
-		exit_with_error "Missing known-good RK3528 U-Boot FDT: ${uboot_fdt}"
-	actual_sha256="$(sha256sum "${uboot_fdt}" | cut -d' ' -f1)"
+	[[ -s "${fit}" ]] ||
+		exit_with_error "Missing known-good RK3528 U-Boot FIT: ${fit}"
+	actual_sha256="$(sha256sum "${fit}" | cut -d' ' -f1)"
+	actual_size="$(stat -c '%s' "${fit}")"
 	[[ "${actual_sha256}" == "${expected_sha256}" ]] ||
-		exit_with_error "Known-good RK3528 U-Boot FDT checksum mismatch: ${actual_sha256}"
-	[[ -s u-boot.its && -s u-boot-nodtb.bin ]] ||
-		exit_with_error "Cannot rebuild RK3528 U-Boot FIT: missing u-boot.its or u-boot-nodtb.bin"
+		exit_with_error "Known-good RK3528 FIT checksum mismatch: ${actual_sha256}"
+	[[ "${actual_size}" == "${expected_size}" ]] ||
+		exit_with_error "Known-good RK3528 FIT size mismatch: ${actual_size}"
+	dumpimage -l "${fit}" | grep -q 'Description:  rk3528-hinlink-h28k' ||
+		exit_with_error "Known-good RK3528 FIT has an unexpected configuration"
 
-	display_alert "${BOARD}" "Using known-good RK3528 U-Boot FDT (${actual_sha256})" "info"
-	run_host_command_logged cp -f "${uboot_fdt}" u-boot.dtb
-	run_host_command_logged sed -i 's/rk3528-evb/rk3528-hinlink-h28k/g' u-boot.its
-	run_host_command_logged tools/mkimage -f u-boot.its -E u-boot.itb
+	display_alert "${BOARD}" "Using complete known-good RK3528 vendor FIT (${actual_sha256})" "info"
+	run_host_command_logged cp -f "${fit}" u-boot.itb
 }
 
 # Use kernel patch series for rockchip64-6.18; includes DTS, rk3528 support patches

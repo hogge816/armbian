@@ -50,7 +50,7 @@ jobs:
       - name: Build HT2 Linux 6.18 image
         run: |
           set -euo pipefail
-          ./compile.sh \
+          ./compile.sh build \
             BOARD="${BOARD}" \
             BRANCH="${BRANCH}" \
             RELEASE="${RELEASE}" \
@@ -58,6 +58,8 @@ jobs:
             BUILD_DESKTOP=no \
             KERNEL_BTF=no \
             KERNEL_CONFIGURE=no \
+            ARTIFACT_IGNORE_CACHE=yes \
+            ALLOW_ROOT=yes \
             USERSETTINGS_LIST="" \
             EXTENSION="" \
             USE_DOCKER=no \
@@ -159,15 +161,22 @@ jobs:
 
             mount_dir="$(mktemp -d)"
             sudo mount -o loop,ro,offset=$((32768 * 512)) "${image}" "${mount_dir}"
-            dtb="${mount_dir}/dtb/rockchip/rk3528-fastyumjin.dtb"
+            dtb="${mount_dir}/dtb/rockchip/rk3528-hinlink-ht2.dtb"
             test -s "${dtb}"
             test "$(fdtget -t s "${dtb}" / model)" = "Hinlink HT2"
             fdtget -t s "${dtb}" / compatible | grep -q 'hinlink,ht2'
-            fdtget -t s "${dtb}" / compatible | grep -q 'rockchip,rk3528a'
-            test "$(fdtget -t s "${dtb}" /usbdrd/dwc3@fe500000 dr_mode)" = "host"
-            test "$(fdtget -t s "${dtb}" /hdmi@ff8d0000 status)" = "okay"
-            test "$(fdtget -t s "${dtb}" /mmc@ffbf0000 status)" = "okay"
-            test "$(fdtget -t x "${dtb}" /mmc@ffbf0000 bus-width)" = "8"
+            fdtget -t s "${dtb}" / compatible | grep -q 'rockchip,rk3528'
+            test "$(fdtget -t s "${dtb}" /soc/usb@fe500000 dr_mode)" = "host"
+            test "$(fdtget -t s "${dtb}" /soc/mmc@ffbf0000 status)" = "okay"
+            test "$(fdtget -t x "${dtb}" /soc/mmc@ffbf0000 bus-width)" = "8"
+            test "$(fdtget -t s "${dtb}" /chosen stdout-path)" = "serial0:1500000n8"
+            grep -q '^fdtfile=rockchip/rk3528-hinlink-ht2.dtb$' "${mount_dir}/armbianEnv.txt"
+            # Reject copied runtime state and validate the target clock ABI.
+            ! fdtget "${dtb}" / serial-number
+            ! fdtget "${dtb}" /chosen bootargs
+            uart="$(fdtget -t s "${dtb}" /aliases serial0)"
+            read -r _ baudclk _ pclk < <(fdtget -t u "${dtb}" "${uart}" clocks)
+            test "${baudclk}" = "19"
             sudo umount "${mount_dir}"
             rmdir "${mount_dir}"
             printf 'verified_image=%s\n' "${image}"
@@ -198,7 +207,15 @@ jobs:
           test -s "${loader_path}"
           test "$(stat -c '%s' "${loader_path}")" = "${expected_loader_size}"
           test "$(sha256sum "${loader_path}" | cut -d' ' -f1)" = "${expected_loader}"
-          strings -a "${loader_path}" | grep -q 'ddr-v1.09 4bit PCB-665f3e4817'
+          # The Rockchip container stores the DDR marker in its decoded entry.
+          boot_merger="cache/sources/rkbin-tools/tools/boot_merger"
+          test -x "${boot_merger}"
+          loader_unpack="$(mktemp -d)"
+          trap 'rm -rf "${loader_unpack}"' EXIT
+          "${boot_merger}" unpack -i "${loader_path}" -o "${loader_unpack}"
+          test -s "${loader_unpack}/FlashData.bin"
+          strings -a "${loader_unpack}/FlashData.bin" > "${loader_unpack}/ddr-strings.txt"
+          grep -q 'ddr-v1.09 4bit PCB-665f3e4817' "${loader_unpack}/ddr-strings.txt"
           cp "${loader_path}" "${package_dir}/${loader_name}"
           test "$(sha256sum "${package_dir}/${loader_name}" | cut -d' ' -f1)" = "${expected_loader}"
 
@@ -222,6 +239,9 @@ jobs:
             'enumerate Maskrom or Loader.' \
             '' \
             'This package contains the Linux 6.18 image and the audited pre-Linux chain.' \
+            'The 6.18 HT2 port is a headless bring-up target, not vendor feature parity.' \
+            'HDMI, TSADC thermal protection and onboard wireless are not enabled.' \
+            'CPU is limited to 1.2 GHz; use UART0 at 1500000 baud for first boot.' \
             'The image write command below writes the board eMMC. Inspect SHA256SUMS and' \
             'make a backup before running it. The workflow never runs these commands.' \
             '' \
@@ -251,7 +271,10 @@ jobs:
           compression-level: 0
           path: |
             output/usb-flash/*
+            output/images/*.img
             output/images/*.img.sha256
             output/images/*.txt
             output/debs/linux-u-boot-hinlink-ht2-*.deb
+            output/debs/linux-image-current-rockchip64*.deb
+            output/debs/linux-dtb-current-rockchip64*.deb
             output/logs/summary-build-*.md

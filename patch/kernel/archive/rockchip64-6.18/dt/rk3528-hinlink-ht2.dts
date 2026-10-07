@@ -1,0 +1,249 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/dts-v1/;
+
+#include <dt-bindings/pwm/pwm.h>
+#include "rk3528.dtsi"
+
+/* Board wiring from the audited HT2 vendor FDT; SoC bindings from 6.18.
+ * Headless bring-up: this kernel has no RK3528 TSADC/HDMI driver.
+ * Do not enable high CPU OPPs without working thermal protection.
+ */
+/ {
+	model = "Hinlink HT2";
+	compatible = "hinlink,ht2", "rockchip,rk3528";
+
+	aliases {
+		ethernet0 = &gmac1;
+		mmc0 = &sdmmc;
+		mmc1 = &sdhci;
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:1500000n8";
+	};
+
+	/* U-Boot replaces this with the probed RAM map. No captured zero tuples. */
+	memory@200000 {
+		device_type = "memory";
+		reg = <0x0 0x00200000 0x0 0xfbe00000>;
+	};
+
+	vcc5v0_sys: vcc5v0-sys {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_sys";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	vcc_3v3: vcc-3v3-s3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_3v3_s3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		regulator-boot-on;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+	vdd_cpu: vdd-cpu {
+		compatible = "pwm-regulator";
+		pwms = <&pwm1 0 5000 PWM_POLARITY_INVERTED>;
+		pwm-supply = <&vcc5v0_sys>;
+		regulator-name = "vdd_cpu";
+		regulator-min-microvolt = <746000>;
+		regulator-max-microvolt = <1201000>;
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-settling-time-up-us = <250>;
+	};
+
+	vdd_logic: vdd-logic {
+		compatible = "pwm-regulator";
+		pwms = <&pwm2 0 5000 PWM_POLARITY_INVERTED>;
+		pwm-supply = <&vcc5v0_sys>;
+		regulator-name = "vdd_logic";
+		regulator-min-microvolt = <705000>;
+		regulator-max-microvolt = <1006000>;
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-settling-time-up-us = <250>;
+	};
+
+	vdd_gpu: vdd-gpu {
+		compatible = "pwm-regulator";
+		pwms = <&pwm0 0 5000 PWM_POLARITY_INVERTED>;
+		pwm-supply = <&vcc5v0_sys>;
+		regulator-name = "vdd_gpu";
+		regulator-min-microvolt = <705000>;
+		regulator-max-microvolt = <1148000>;
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-settling-time-up-us = <250>;
+	};
+
+	vcc_sd: vcc-sd {
+		compatible = "regulator-fixed";
+		/* No external SD slot: do not request or drive the unused GPIO. */
+		status = "disabled";
+		regulator-name = "vcc_sd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio4 RK_PA1 GPIO_ACTIVE_LOW>;
+		vin-supply = <&vcc_3v3>;
+	};
+
+	vccio_sd: vccio-sd {
+		compatible = "regulator-gpio";
+		status = "disabled";
+		regulator-name = "vccio_sd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>;
+		states = <1800000 0>, <3300000 1>;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led-work {
+			label = "led_green";
+			gpios = <&gpio4 RK_PB7 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "heartbeat";
+		};
+		led-wlan {
+			label = "led_blue";
+			gpios = <&gpio4 RK_PC0 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "default-on";
+		};
+	};
+};
+
+/* Vendor BL31 exports CPU clock 21 (not the newer SCMI ID 0).
+ * Use the target kernel CRU ARMCLK rather than inventing a firmware ABI.
+ */
+&cpu0 {
+	clocks = <&cru ARMCLK>;
+	cpu-supply = <&vdd_cpu>;
+};
+&cpu1 {
+	clocks = <&cru ARMCLK>;
+	cpu-supply = <&vdd_cpu>;
+};
+&cpu2 {
+	clocks = <&cru ARMCLK>;
+	cpu-supply = <&vdd_cpu>;
+};
+&cpu3 {
+	clocks = <&cru ARMCLK>;
+	cpu-supply = <&vdd_cpu>;
+};
+
+/* Conservative bring-up OPP: covers vendor leakage-bin voltage requirements.
+ * This is NOT a substitute for temperature monitoring or board testing.
+ */
+&cpu_opp_table {
+	/delete-node/ opp-1416000000;
+	/delete-node/ opp-1608000000;
+	/delete-node/ opp-1800000000;
+	/delete-node/ opp-2016000000;
+	opp-1200000000 {
+		opp-microvolt = <900000 900000 1100000>;
+	};
+};
+
+&scmi {
+	status = "disabled";
+};
+
+&pwm0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm0m0_pins>;
+	status = "okay";
+};
+&pwm1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm1m0_pins>;
+	status = "okay";
+};
+&pwm2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm2m0_pins>;
+	status = "okay";
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0m0_xfer>;
+	status = "okay";
+};
+
+&sdhci {
+	bus-width = <8>;
+	non-removable;
+	no-sd;
+	no-sdio;
+	cap-mmc-highspeed;
+	mmc-hs200-1_8v;
+	/* HS400 tuning must be validated on hardware before enabling it. */
+	status = "okay";
+};
+
+&sdmmc {
+	bus-width = <4>;
+	cap-sd-highspeed;
+	disable-wp;
+	max-frequency = <50000000>;
+	vmmc-supply = <&vcc_sd>;
+	vqmmc-supply = <&vccio_sd>;
+	/* The audited HT2 has no external SD slot. Do not enable unused pins. */
+	status = "disabled";
+};
+
+&gmac1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&rgmii_miim>, <&rgmii_rx_bus2>, <&rgmii_tx_bus2>,
+		    <&rgmii_rgmii_clk>, <&rgmii_rgmii_bus>;
+	phy-mode = "rgmii-rxid";
+	clock_in_out = "output";
+	tx_delay = <0x30>;
+	phy-handle = <&rgmii_phy>;
+	status = "okay";
+};
+
+&mdio1 {
+	rgmii_phy: ethernet-phy@1 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <1>;
+		reset-gpios = <&gpio4 RK_PC2 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <20000>;
+		reset-deassert-us = <100000>;
+	};
+};
+
+&combphy {
+	status = "okay";
+};
+&u2phy {
+	status = "okay";
+};
+&u2phy_host {
+	status = "okay";
+};
+&u2phy_otg {
+	status = "okay";
+};
+&usb_host0_ehci {
+	status = "okay";
+};
+&usb_host0_ohci {
+	status = "okay";
+};
+&usb_host0_xhci {
+	phys = <&u2phy_otg>, <&combphy PHY_TYPE_USB3>;
+	phy-names = "usb2-phy", "usb3-phy";
+	dr_mode = "host";
+	status = "okay";
+};
