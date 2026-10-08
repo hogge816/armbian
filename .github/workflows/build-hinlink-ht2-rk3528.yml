@@ -170,6 +170,7 @@ jobs:
             test "$(fdtget -t s "${dtb}" /soc/mmc@ffbf0000 status)" = "okay"
             test "$(fdtget -t x "${dtb}" /soc/mmc@ffbf0000 bus-width)" = "8"
             test "$(fdtget -t s "${dtb}" /chosen stdout-path)" = "serial0:1500000n8"
+            python3 tools/verify-ht2-scmi.py "${dtb}"
             grep -q '^fdtfile=rockchip/rk3528-hinlink-ht2.dtb$' "${mount_dir}/armbianEnv.txt"
             # Reject copied runtime state and validate the target clock ABI.
             ! fdtget "${dtb}" / serial-number

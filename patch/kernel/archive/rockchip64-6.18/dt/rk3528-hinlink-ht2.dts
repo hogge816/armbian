@@ -121,23 +121,24 @@
 	};
 };
 
-/* Vendor BL31 exports CPU clock 21 (not the newer SCMI ID 0).
- * Use the target kernel CRU ARMCLK rather than inventing a firmware ABI.
+/* Preserve the audited BL31 clock contract. Linux 6.18.55 also defines
+ * SCMI_CLK_CPU as 21; there is no clock-ID mismatch requiring direct CRU
+ * control. Keep voltage control board-local and CPU clock control in BL31.
  */
 &cpu0 {
-	clocks = <&cru ARMCLK>;
+	clocks = <&scmi_clk SCMI_CLK_CPU>;
 	cpu-supply = <&vdd_cpu>;
 };
 &cpu1 {
-	clocks = <&cru ARMCLK>;
+	clocks = <&scmi_clk SCMI_CLK_CPU>;
 	cpu-supply = <&vdd_cpu>;
 };
 &cpu2 {
-	clocks = <&cru ARMCLK>;
+	clocks = <&scmi_clk SCMI_CLK_CPU>;
 	cpu-supply = <&vdd_cpu>;
 };
 &cpu3 {
-	clocks = <&cru ARMCLK>;
+	clocks = <&scmi_clk SCMI_CLK_CPU>;
 	cpu-supply = <&vdd_cpu>;
 };
 
@@ -155,7 +156,7 @@
 };
 
 &scmi {
-	status = "disabled";
+	status = "okay";
 };
 
 &pwm0 {

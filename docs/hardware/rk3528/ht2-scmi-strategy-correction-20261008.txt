@@ -1,0 +1,26 @@
+HT2 Linux 6.18 build strategy correction (2026-10-08)
+==================================================
+Confirmed correction:
+- The cloud log identifies exact Linux commit 725bd2f3c81d54edccb66fead01d4c0c222e2231 (6.18.55).
+- Its original rockchip,rk3528-cru.h defines SCMI_CLK_CPU=21, not 0.
+- The vendor extracted DTS uses SCMI protocol@14 clock 0x15=21 and SMC 0x82000010.
+- Restore CPU0-3 SCMI clocks and enable SCMI; preserve audited idbloader/FIT/BL31.
+- Add tools/verify-ht2-scmi.py and execute it on the actual image DTB in CI.
+
+Evidence URLs:
+https://raw.githubusercontent.com/gregkh/linux/725bd2f3c81d54edccb66fead01d4c0c222e2231/include/dt-bindings/clock/rockchip,rk3528-cru.h
+https://raw.githubusercontent.com/gregkh/linux/725bd2f3c81d54edccb66fead01d4c0c222e2231/arch/arm64/boot/dts/rockchip/rk3528.dtsi
+Vendor capture: config/booting/rockchip/rk3528-fastyumjin.dts, firmware/scmi/protocol@14.
+
+Scope and limitations:
+- This corrects an unsupported departure from the known-good firmware interface. It does not prove the cause of past hardware boot failures.
+- Keep existing 1.2 GHz cap and HS200 unchanged in this isolated correction; they are conservative limitations, not demonstrated boot fixes or hardware limits.
+- Do not restore high OPPs without validating the vendor voltage-bin/PVTM behavior and thermal protection in the target driver stack.
+- HDMI/wireless/TSADC parity remains unfinished; do not advertise this as a fully functional vendor replacement.
+- No board flash, system process termination, or unrelated dirty-tree changes are part of this fix.
+
+Verification:
+- New SCMI checker fails on uploaded DTB (SCMI disabled).
+- Compiling corrected board DTS with local target headers succeeds; pre-existing SoC dtc warnings remain.
+- Corrected compiled DTB passes SCMI checker and all four existing board-binding tests.
+- Cloud build and hardware boot remain unverified until independently executed.
